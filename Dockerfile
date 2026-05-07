@@ -41,7 +41,8 @@ RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: 
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
-RUN mkdir -p seeds outputs
+RUN mkdir -p seeds outputs sixel_crashes
+COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY test_target.sh /fuzzing/test_target.sh
 COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
 RUN chmod +x /fuzzing/*.sh
