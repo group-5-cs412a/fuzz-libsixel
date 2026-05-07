@@ -2,8 +2,10 @@ FROM aflplusplus/aflplusplus:latest
 
 # Build dependencies
 RUN apt-get update && apt-get install -y \
-    meson \
-    ninja-build \
+    autoconf \
+    automake \
+    libtool \
+    make \
     pkg-config \
     libjpeg-dev \
     libpng-dev \
@@ -12,21 +14,24 @@ RUN apt-get update && apt-get install -y \
     strace \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the libsixel repository
+# Clone the tagged libsixel release
 WORKDIR /src
-RUN git clone https://github.com/libsixel/libsixel.git
+RUN git clone --branch v1.8.7 --depth 1 https://github.com/saitoha/libsixel.git
 
 # Configure and build libsixel
 WORKDIR /src/libsixel
-RUN CC=afl-clang-lto CXX=afl-clang-lto++ meson setup build \
-    --buildtype=debug \
-    --default-library=static \
-    -Dprefix=/usr/local \
-    -Dlibcurl=disabled \
-    -Dpython=disabled \
-    -Dgdk-pixbuf2=disabled
+RUN CC=afl-clang-lto CXX=afl-clang-lto++ ./configure \
+    --prefix=/usr/local \
+    --disable-shared \
+    --enable-static \
+    --with-libcurl=no \
+    --with-gdk-pixbuf2=no \
+    --with-gd \
+    --with-jpeg \
+    --with-png \
+    --disable-python
 
-RUN ninja -C build install
+RUN make -j"$(nproc)" install
 
 # Use --whole-archive as in handout thingy 
 COPY harness.c /src/harness.c
