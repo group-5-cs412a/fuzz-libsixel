@@ -1,5 +1,8 @@
 FROM aflplusplus/aflplusplus:latest
 
+ENV AFL_USE_ASAN=1
+ENV ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=0
+
 # Build dependencies
 RUN apt-get update && apt-get install -y \
     autoconf \
@@ -47,13 +50,10 @@ RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
 RUN mkdir -p seeds outputs sixel_crashes
+COPY corpus/gif/*.gif /fuzzing/seeds/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY test_target.sh /fuzzing/test_target.sh
 COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
 RUN chmod +x /fuzzing/*.sh
-
-# Copy images from the repo that are 200 bytes or smaller,
-# Larger ones really slow down the fuzzing (50 execs / second)
-RUN find /src/libsixel/images -type f -size -201c -exec cp {} /fuzzing/seeds/ \;
 
 CMD ["/bin/bash"]
