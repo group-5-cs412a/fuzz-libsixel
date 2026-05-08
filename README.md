@@ -34,27 +34,28 @@ The wrapped GIF corpus currently includes at least one slow seed, so the
 default AFL timeout of `1000 ms` is too low for a fresh dry run. Use
 `-t 5000` unless you also trim the seed set.
 
-Current byte-0 mapping is intentionally small:
+Current byte-0 mapping uses bitwise flags to configure multiple options simultaneously:
 
-- `0`: no extra flag
-- `1`: `-B '#000000'`
-- `2`: `-B '#ffffff'`
-- `3`: `-B '#ff00ff'`
-- `4`: `-q low`
-- `5`: `-q high`
-- `6`: `-d none`
-- `7`: `-S`
+- **Bits 0-1 (2 bits):** Quality (`auto`, `high`, `low`, `full`)
+- **Bits 2-4 (3 bits):** Diffusion (`auto`, `none`, `fs`, `atkinson`, `jajuni`, `stucki`, `burkes`, `a_dither`)
+- **Bits 5-6 (2 bits):** Background Color (`None`, `#000000`, `#FFFFFF`, `#FF0000`)
+- **Bit 7 (1 bit):** Encode Policy (`fast`, `auto`)
 
 ## 3. Triaging Crashes
 
 When the fuzzer finds a crash, it is saved in `/fuzzing/outputs/<instance>/crashes/`.
 
 ### Analyze with GDB
-To see where the program died:
+To see where the program died, pipe the crash into the harness via standard input (since the harness now reads from stdin):
 ```bash
-gdb --args /usr/local/bin/sixel-harness /fuzzing/outputs/main/crashes/id:000000...
-(gdb) run
+gdb /usr/local/bin/sixel-harness
+(gdb) run < /fuzzing/outputs/main/crashes/id:000000...
 (gdb) bt
+```
+
+Alternatively, to see the ASAN trace directly with human-readable function names:
+```bash
+ASAN_OPTIONS=symbolize=1 cat /fuzzing/outputs/main/crashes/id:000000... | /usr/local/bin/sixel-harness
 ```
 
 ## 4. Performance Optimizations
@@ -80,4 +81,4 @@ Why GIFs:
 - Small valid GIFs are cheaper to execute and stay structurally useful for
   longer under mutation.
 
-Redacted with Gemini CLI
+
