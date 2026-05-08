@@ -23,7 +23,7 @@ RUN git clone --branch v1.8.7 --depth 1 https://github.com/saitoha/libsixel.git
 
 # Configure and build libsixel
 WORKDIR /src/libsixel
-RUN CC=afl-clang-lto CXX=afl-clang-lto++ ./configure \
+RUN CC=afl-clang-lto CXX=afl-clang-lto++ CFLAGS="-g" CXXFLAGS="-g" ./configure \
     --prefix=/usr/local \
     --disable-shared \
     --enable-static \
@@ -38,7 +38,7 @@ RUN make -j"$(nproc)" install
 
 # Use --whole-archive as in handout thingy 
 COPY harness.c /src/harness.c
-RUN afl-clang-lto /src/harness.c -o /usr/local/bin/sixel-harness \
+RUN afl-clang-lto -g /src/harness.c -o /usr/local/bin/sixel-harness \
     -I/usr/local/include \
     -L/usr/local/lib -L/usr/local/lib/x86_64-linux-gnu -L/usr/local/lib64 \
     -Wl,--whole-archive -lsixel -Wl,--no-whole-archive \

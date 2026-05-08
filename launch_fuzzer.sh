@@ -4,7 +4,7 @@
 # Example: ./launch_fuzzer.sh 4
 
 NUM_INSTANCES=${1:-1}
-SEEDS="/fuzzing/seeds"
+SEEDS="/fuzzing/afl-seeds"
 OUTPUTS="/fuzzing/outputs"
 TARGET="/usr/local/bin/sixel-harness"
 shopt -s nullglob
@@ -28,14 +28,14 @@ echo "Starting $NUM_INSTANCES AFL++ instances (Skipping deterministic stage for 
 
 # 1. Start the Master instance (with -d for speed)
 echo "Launching Master instance (main)..."
-afl-fuzz -d -M main -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" @@ > "$OUTPUTS/main.log" 2>&1 &
+afl-fuzz -t 3000 -d -M main -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" > "$OUTPUTS/main.log" 2>&1 &
 sleep 2
 
 # 2. Start Secondary instances
 if [ "$NUM_INSTANCES" -gt 1 ]; then
     for i in $(seq 1 $((NUM_INSTANCES - 1))); do
         echo "Launching Secondary instance (c$i)..."
-        afl-fuzz -S "c$i" -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" @@ > "$OUTPUTS/c$i.log" 2>&1 &
+        afl-fuzz -t 3000 -S "c$i" -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" > "$OUTPUTS/c$i.log" 2>&1 &
     done
 fi
 

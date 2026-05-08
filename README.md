@@ -21,10 +21,29 @@ Use the included launch script to start a master and several secondary instances
 ./launch_fuzzer.sh 4
 ```
 
+The launcher wraps each GIF seed with a single leading control byte. The
+harness interprets that byte as a selector for a small set of valid
+`img2sixel` flag/value pairs, and treats the remaining bytes as the GIF input.
+
 ### Manual Start (Single Instance)
 ```bash
-afl-fuzz -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness @@
+afl-fuzz -t 5000 -m none -x /fuzzing/img2sixel.dict -i /fuzzing/afl-seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
 ```
+
+The wrapped GIF corpus currently includes at least one slow seed, so the
+default AFL timeout of `1000 ms` is too low for a fresh dry run. Use
+`-t 5000` unless you also trim the seed set.
+
+Current byte-0 mapping is intentionally small:
+
+- `0`: no extra flag
+- `1`: `-B '#000000'`
+- `2`: `-B '#ffffff'`
+- `3`: `-B '#ff00ff'`
+- `4`: `-q low`
+- `5`: `-q high`
+- `6`: `-d none`
+- `7`: `-S`
 
 ## 3. Triaging Crashes
 
@@ -43,7 +62,7 @@ gdb --args /usr/local/bin/sixel-harness /fuzzing/outputs/main/crashes/id:000000.
 - **LTO Instrumentation**: Uses `afl-clang-lto` for collision-free coverage.
 - **Persistent Mode**: The harness uses `__AFL_LOOP(1000)` to avoid process startup overhead.
 - **GIF-Focused Seeds**: Initial seeds come from a vendored corpus of small GIF files instead of upstream PNG-heavy samples.
-- **Heavy Math Disabled**: The harness disables dithering and high-quality quantization to focus on parsing logic.
+- **Simple Flag Mutation**: A one-byte selector drives a tiny set of valid `img2sixel` options before the GIF payload reaches `sixel_encoder_encode()`.
 
 `afl-fuzz` is run with `-m none` because ASan needs more virtual memory than AFL's default memory limit allows.
 Leak detection is disabled at runtime with `ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=0` so the campaign focuses on crashing memory errors instead of known process-exit leaks, and to stay compatible with AFL++'s ASan checks.
