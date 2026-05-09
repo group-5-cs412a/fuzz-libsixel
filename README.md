@@ -14,8 +14,9 @@ docker build -t libsixel-fuzzer .
 ```
 
 ### Start the Container
+It is recommended to run the container as your current host user so that output files are not owned by root:
 ```bash
-docker run --rm -it libsixel-fuzzer
+docker run --rm -it --user $(id -u):$(id -g) libsixel-fuzzer
 ```
 
 ### Manual Start (Single Instance)
