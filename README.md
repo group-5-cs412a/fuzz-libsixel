@@ -1,4 +1,12 @@
-## 1. Build and Run
+
+## 1. Build and Run with Makefile (Recommended)
+The recommended entrypoint is the project `Makefile`, which keeps AFL++ outputs on
+the host under `outputs/<timestamp>/` so each fuzzing run is preserved separately.
+
+First build with `make build`, then start fuzzing with `make fuzz` or `make fuzz-threaded` to launch multiple parallel instances.
+
+
+## 2. Build and Run Manually
 
 ### Build the Image
 ```bash
@@ -10,22 +18,6 @@ docker build -t libsixel-fuzzer .
 docker run --rm -it libsixel-fuzzer
 ```
 
-The image copies a pre-generated wrapped seed corpus from `corpus/wrapped_gif/`.
-
-## 2. Launch Fuzzing
-
-### Quick Start (Automatic Multi-core)
-Use the included launch script to start a master and several secondary instances.
-```bash
-# Launch 4 parallel instances
-./launch_fuzzer.sh 4
-```
-
-The wrapped corpus is generated from `corpus/gif/` by
-`./generate_wrapped_seeds.sh`. Each wrapped seed starts with a single control
-byte. The harness interprets that byte as a selector for a small set of valid
-`img2sixel` flag/value pairs, and treats the remaining bytes as the GIF input.
-
 ### Manual Start (Single Instance)
 ```bash
 afl-fuzz -t 5000 -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
@@ -35,12 +27,8 @@ The wrapped GIF corpus currently includes at least one slow seed, so the
 default AFL timeout of `1000 ms` is too low for a fresh dry run. Use
 `-t 5000` unless you also trim the seed set.
 
-Current byte-0 mapping uses bitwise flags to configure multiple options simultaneously:
 
-- **Bits 0-1 (2 bits):** Quality (`auto`, `high`, `low`, `full`)
-- **Bits 2-4 (3 bits):** Diffusion (`auto`, `none`, `fs`, `atkinson`, `jajuni`, `stucki`, `burkes`, `a_dither`)
-- **Bits 5-6 (2 bits):** Background Color (`None`, `#000000`, `#FFFFFF`, `#FF0000`)
-- **Bit 7 (1 bit):** Encode Policy (`fast`, `auto`)
+
 
 ## 3. Triaging Crashes
 
@@ -77,3 +65,12 @@ Why GIFs:
   amount of deeper image-decoding behavior AFL++ can explore.
 - Small valid GIFs are cheaper to execute and stay structurally useful for
   longer under mutation.
+
+### Wrapped Seeds
+
+Current byte-0 mapping uses bitwise flags to configure multiple options simultaneously:
+
+- **Bits 0-1 (2 bits):** Quality (`auto`, `high`, `low`, `full`)
+- **Bits 2-4 (3 bits):** Diffusion (`auto`, `none`, `fs`, `atkinson`, `jajuni`, `stucki`, `burkes`, `a_dither`)
+- **Bits 5-6 (2 bits):** Background Color (`None`, `#000000`, `#FFFFFF`, `#FF0000`)
+- **Bit 7 (1 bit):** Encode Policy (`fast`, `auto`)
