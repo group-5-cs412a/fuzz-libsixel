@@ -10,7 +10,7 @@ docker build -t libsixel-fuzzer .
 docker run --rm -it libsixel-fuzzer
 ```
 
-The image includes a vendored GIF seed corpus from `corpus/gif/`.
+The image copies a pre-generated wrapped seed corpus from `corpus/wrapped_gif/`.
 
 ## 2. Launch Fuzzing
 
@@ -21,13 +21,14 @@ Use the included launch script to start a master and several secondary instances
 ./launch_fuzzer.sh 4
 ```
 
-The launcher wraps each GIF seed with a single leading control byte. The
-harness interprets that byte as a selector for a small set of valid
+The wrapped corpus is generated from `corpus/gif/` by
+`./generate_wrapped_seeds.sh`. Each wrapped seed starts with a single control
+byte. The harness interprets that byte as a selector for a small set of valid
 `img2sixel` flag/value pairs, and treats the remaining bytes as the GIF input.
 
 ### Manual Start (Single Instance)
 ```bash
-afl-fuzz -t 5000 -m none -x /fuzzing/img2sixel.dict -i /fuzzing/afl-seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
+afl-fuzz -t 5000 -m none -x /fuzzing/img2sixel.dict -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
 ```
 
 The wrapped GIF corpus currently includes at least one slow seed, so the
@@ -70,8 +71,8 @@ Leak detection is disabled at runtime with `ASAN_OPTIONS=detect_leaks=0:abort_on
 
 ## 5. Seed Corpus
 
-The fuzzing corpus is stored in `corpus/gif/` and copied into `/fuzzing/seeds`
-during the Docker build.
+Raw GIF seeds live in `corpus/gif/`. Run `./generate_wrapped_seeds.sh` to
+rebuild the wrapped corpus in `corpus/wrapped_gif/`.
 
 Why GIFs:
 - The previous tiny-seed approach mostly pulled PNG files from the upstream
@@ -80,5 +81,3 @@ Why GIFs:
   amount of deeper image-decoding behavior AFL++ can explore.
 - Small valid GIFs are cheaper to execute and stay structurally useful for
   longer under mutation.
-
-

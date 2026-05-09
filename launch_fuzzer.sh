@@ -4,7 +4,7 @@
 # Example: ./launch_fuzzer.sh 4
 
 NUM_INSTANCES=${1:-1}
-SEEDS="/fuzzing/afl-seeds"
+SEEDS="/fuzzing/seeds"
 OUTPUTS="/fuzzing/outputs"
 TARGET="/usr/local/bin/sixel-harness"
 shopt -s nullglob
@@ -14,7 +14,7 @@ mkdir -p "$SEEDS" "$OUTPUTS"
 seeds=("$SEEDS"/*.gif)
 
 if [ ${#seeds[@]} -eq 0 ]; then
-    echo "Error: no GIF seeds found in $SEEDS"
+    echo "Error: no wrapped GIF seeds found in $SEEDS"
     exit 1
 fi
 

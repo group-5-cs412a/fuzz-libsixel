@@ -23,7 +23,7 @@ RUN git clone --branch v1.8.7 --depth 1 https://github.com/saitoha/libsixel.git
 
 # Configure and build libsixel
 WORKDIR /src/libsixel
-RUN CC=afl-clang-lto CXX=afl-clang-lto++ CFLAGS="-g" CXXFLAGS="-g" ./configure \
+RUN CC=afl-clang-lto CXX=afl-clang-lto++ ./configure \
     --prefix=/usr/local \
     --disable-shared \
     --enable-static \
@@ -38,7 +38,7 @@ RUN make -j"$(nproc)" install
 
 # Use --whole-archive as in handout thingy 
 COPY harness.c /src/harness.c
-RUN afl-clang-lto -g /src/harness.c -o /usr/local/bin/sixel-harness \
+RUN afl-clang-lto /src/harness.c -o /usr/local/bin/sixel-harness \
     -I/usr/local/include \
     -L/usr/local/lib -L/usr/local/lib/x86_64-linux-gnu -L/usr/local/lib64 \
     -Wl,--whole-archive -lsixel -Wl,--no-whole-archive \
@@ -49,16 +49,11 @@ RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: 
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
-RUN mkdir -p seeds afl-seeds outputs sixel_crashes
-COPY corpus/gif/*.gif /fuzzing/seeds/
+RUN mkdir -p seeds outputs sixel_crashes
+COPY corpus/wrapped_gif/*.gif /fuzzing/seeds/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY test_target.sh /fuzzing/test_target.sh
 COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
-RUN for seed in /fuzzing/seeds/*.gif; do \
-        wrapped_seed="/fuzzing/afl-seeds/$(basename "$seed")"; \
-        printf '\0' > "$wrapped_seed"; \
-        cat "$seed" >> "$wrapped_seed"; \
-    done
 RUN chmod +x /fuzzing/*.sh
 
 CMD ["/bin/bash"]
