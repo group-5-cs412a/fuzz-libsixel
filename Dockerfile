@@ -54,6 +54,8 @@ COPY corpus/wrapped_gif/*.gif /fuzzing/seeds/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY test_target.sh /fuzzing/test_target.sh
 COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
-RUN chmod +x /fuzzing/*.sh
+
+# Use 755 for non-root user compatibility
+RUN chmod +x /fuzzing/*.sh && chmod 755 /fuzzing
 
 CMD ["/bin/bash"]
