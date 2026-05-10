@@ -14,7 +14,7 @@ mkdir -p "$SEEDS" "$OUTPUTS"
 seeds=("$SEEDS"/*.gif)
 
 if [ ${#seeds[@]} -eq 0 ]; then
-    echo "Error: no GIF seeds found in $SEEDS"
+    echo "Error: no wrapped GIF seeds found in $SEEDS"
     exit 1
 fi
 
@@ -28,14 +28,14 @@ echo "Starting $NUM_INSTANCES AFL++ instances (Skipping deterministic stage for 
 
 # 1. Start the Master instance (with -d for speed)
 echo "Launching Master instance (main)..."
-afl-fuzz -d -M main -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" @@ > "$OUTPUTS/main.log" 2>&1 &
+afl-fuzz -t 3000 -d -M main -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" > "$OUTPUTS/main.log" 2>&1 &
 sleep 2
 
 # 2. Start Secondary instances
 if [ "$NUM_INSTANCES" -gt 1 ]; then
     for i in $(seq 1 $((NUM_INSTANCES - 1))); do
         echo "Launching Secondary instance (c$i)..."
-        afl-fuzz -S "c$i" -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" @@ > "$OUTPUTS/c$i.log" 2>&1 &
+        afl-fuzz -t 3000 -S "c$i" -m none -i "$INPUT_ARG" -o "$OUTPUTS" -- "$TARGET" > "$OUTPUTS/c$i.log" 2>&1 &
     done
 fi
 

@@ -6,21 +6,21 @@ shopt -s nullglob
 seeds=(/fuzzing/seeds/*.gif)
 
 if [ ${#seeds[@]} -eq 0 ]; then
-    echo "Error: no GIF seeds found in /fuzzing/seeds"
+    echo "Error: no wrapped GIF seeds found in /fuzzing/seeds"
     exit 1
 fi
 
-# Test if img2sixel works on all seeds
-echo "Testing img2sixel on seeds..."
+# Test if the harness accepts all wrapped seeds.
+echo "Testing sixel-harness on wrapped seeds..."
 for seed in "${seeds[@]}"; do
     echo "Processing $seed"
-    /usr/local/bin/img2sixel -o /dev/null "$seed"
+    /usr/local/bin/sixel-harness < "$seed"
     if [ $? -ne 0 ]; then
-        echo "Error: img2sixel failed on $seed"
+        echo "Error: sixel-harness failed on $seed"
         exit 1
     fi
 done
 echo "All seeds processed successfully."
 
 echo "Testing with AFL_DEBUG=1..."
-AFL_DEBUG=1 /usr/local/bin/img2sixel -o /dev/null "${seeds[0]}"
+AFL_DEBUG=1 /usr/local/bin/sixel-harness < "${seeds[0]}"

@@ -49,16 +49,13 @@ RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: 
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
-RUN mkdir -p seeds afl-seeds outputs sixel_crashes
-COPY corpus/gif/*.gif /fuzzing/seeds/
+RUN mkdir -p seeds outputs sixel_crashes
+COPY corpus/wrapped_gif/*.gif /fuzzing/seeds/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY test_target.sh /fuzzing/test_target.sh
 COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
-RUN for seed in /fuzzing/seeds/*.gif; do \
-        wrapped_seed="/fuzzing/afl-seeds/$(basename "$seed")"; \
-        printf '\0' > "$wrapped_seed"; \
-        cat "$seed" >> "$wrapped_seed"; \
-    done
-RUN chmod +x /fuzzing/*.sh
+
+# Use 755 for non-root user compatibility
+RUN chmod +x /fuzzing/*.sh && chmod 755 /fuzzing
 
 CMD ["/bin/bash"]
