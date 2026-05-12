@@ -8,12 +8,17 @@
  * Optimized Persistent Mode Harness for libsixel
  */
 
+#ifndef __AFL_LOOP
+#define __AFL_LOOP(x) ((x)--)
+#endif
+
 int main(int argc, char *argv[]) {
     // We will save the incoming bytes (after the flag byte) to a temp file
     char filename[256];
     snprintf(filename, sizeof(filename), "/dev/shm/fuzz_input_%d.gif", getpid());
 
-    while (__AFL_LOOP(1000)) {
+    int count = 1;
+    while (__AFL_LOOP(count)) {
         // Rewind stdin, as afl-fuzz will feed the testcase here.
         lseek(STDIN_FILENO, 0, SEEK_SET);
 

@@ -44,8 +44,29 @@ RUN afl-clang-lto /src/harness.c -o /usr/local/bin/sixel-harness \
     -Wl,--whole-archive -lsixel -Wl,--no-whole-archive \
     -ljpeg -lpng -lgd -lm
 
-# Check if harness is instrumented
-RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: Harness not instrumented" && exit 1)
+# Build vanilla libsixel and harness for QEMU mode (no instrumentation, no ASan)
+WORKDIR /src/libsixel
+RUN make clean && CC=gcc CXX=g++ ./configure \
+    --prefix=/usr/local/vanilla \
+    --disable-shared \
+    --enable-static \
+    --with-libcurl=no \
+    --with-gdk-pixbuf2=no \
+    --with-gd \
+    --with-jpeg \
+    --with-png \
+    --disable-python
+RUN make -j"$(nproc)" install
+
+RUN gcc /src/harness.c -o /usr/local/bin/sixel-harness-qemu \
+    -I/usr/local/vanilla/include \
+    -L/usr/local/vanilla/lib \
+    -Wl,--whole-archive -lsixel -Wl,--no-whole-archive \
+    -ljpeg -lpng -lgd -lm
+
+# Check if harness is instrumented (main one should be, qemu one should NOT be)
+RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: Main harness not instrumented" && exit 1)
+RUN nm /usr/local/bin/sixel-harness-qemu | grep -q "__afl_area_ptr" && (echo "Error: QEMU harness should not be instrumented" && exit 1) || true
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
