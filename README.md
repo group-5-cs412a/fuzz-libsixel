@@ -5,7 +5,6 @@ the host under `outputs/<timestamp>/` so each fuzzing run is preserved separatel
 
 First build with `make build`, then start fuzzing with `make fuzz` or `make fuzz-threaded` to launch multiple parallel instances.
 
-
 ## 2. Build and Run Manually
 
 ### Build the Image

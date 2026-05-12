@@ -24,13 +24,28 @@ fuzz-threaded:
 	@run_dir="$(OUTPUT_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT)
+	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) native
+
+fuzz-qemu-threaded:
+	@if ! docker image inspect $(IMAGE_NAME) >/dev/null 2>&1; then echo "Error: Image $(IMAGE_NAME) not found. Run 'make build' first."; exit 1; fi
+	@run_dir="$(OUTPUT_DIR)/qemu-threaded-$$(date +%Y%m%d-%H%M%S)"; \
+	mkdir -p "$$run_dir"; \
+	printf 'Saving AFL++ QEMU outputs to %s\n' "$$run_dir"; \
+	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(QEMUTIMEOUT) qemu
 
 fuzz-qemu:
+	@if ! docker image inspect $(IMAGE_NAME) >/dev/null 2>&1; then echo "Error: Image $(IMAGE_NAME) not found. Run 'make build' first."; exit 1; fi
 	@run_dir="$(OUTPUT_DIR)/qemu-$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ QEMU outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -e AFL_USE_QASAN=1 -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(QEMUTIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
+	ARCH=$$(uname -m); \
+	if [ "$$ARCH" = "arm64" ] || [ "$$ARCH" = "aarch64" ]; then \
+		echo "Note: QASan is disabled because it is often unstable on arm64/aarch64."; \
+		QASAN_FLAG=""; \
+	else \
+		QASAN_FLAG="-e AFL_USE_QASAN=1"; \
+	fi; \
+	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(QEMUTIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
 
 clean:
 	rm -rf "$(OUTPUT_DIR)"
