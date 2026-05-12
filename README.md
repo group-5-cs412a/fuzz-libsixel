@@ -5,6 +5,8 @@ the host under `outputs/<timestamp>/` so each fuzzing run is preserved separatel
 
 First build with `make build`, then start fuzzing with `make fuzz` or `make fuzz-threaded` to launch multiple parallel instances.
 
+To visualize progress, you can generate AFL plots with `make plot`. This will create a `plot/` directory inside your latest output run folder (e.g., `outputs/20260512-123456/plot/`). You can also specify a specific run directory with `make plot RUN_DIR=outputs/my-run`.
+
 ## 2. Build and Run Manually
 
 ### Build the Image
