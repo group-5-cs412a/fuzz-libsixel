@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Usage: ./launch_fuzzer.sh <number_of_instances>
-# Example: ./launch_fuzzer.sh 4
+# Usage: ./scripts/launch_fuzzer.sh <number_of_instances>
+# Example: ./scripts/launch_fuzzer.sh 4
 
 NUM_INSTANCES=${1:-1}
 SEEDS="/fuzzing/seeds"

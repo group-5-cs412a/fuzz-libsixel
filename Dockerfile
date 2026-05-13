@@ -23,7 +23,7 @@ RUN git clone --branch v1.8.7 --depth 1 https://github.com/saitoha/libsixel.git
 
 # Configure and build libsixel
 WORKDIR /src/libsixel
-RUN CC=afl-clang-lto CXX=afl-clang-lto++ ./configure \
+RUN CC=afl-clang-lto CXX=afl-clang-lto++ CFLAGS="-g -O2" CXXFLAGS="-g -O2" ./configure \
     --prefix=/usr/local \
     --disable-shared \
     --enable-static \
@@ -49,13 +49,13 @@ RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: 
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
-RUN mkdir -p seeds outputs sixel_crashes
+RUN mkdir -p seeds seeds_extended outputs sixel_crashes scripts
 COPY corpus/wrapped_gif/*.gif /fuzzing/seeds/
+COPY corpus/wrapped_gif_extended/*.gif /fuzzing/seeds_extended/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
-COPY test_target.sh /fuzzing/test_target.sh
-COPY launch_fuzzer.sh /fuzzing/launch_fuzzer.sh
+COPY scripts/*.sh /fuzzing/scripts/
 
 # Use 755 for non-root user compatibility
-RUN chmod +x /fuzzing/*.sh && chmod 755 /fuzzing
+RUN chmod +x /fuzzing/scripts/*.sh && chmod 755 /fuzzing /fuzzing/scripts
 
 CMD ["/bin/bash"]
