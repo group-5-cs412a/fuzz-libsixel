@@ -8,7 +8,7 @@ USER_ID ?= $(shell id -u)
 GROUP_ID ?= $(shell id -g)
 DOCKER_FLAGS = --rm -it --user $(USER_ID):$(GROUP_ID)
 
-.PHONY: build fuzz fuzz-threaded fuzz-qemu-threaded fuzz-qemu clean
+.PHONY: build fuzz fuzz-threaded fuzz-qemu fuzz-qemu-threaded clean plot
 
 build:
 	docker build -t $(IMAGE_NAME) .
@@ -47,6 +47,31 @@ fuzz-qemu:
 		QASAN_FLAG="-e AFL_USE_QASAN=1"; \
 	fi; \
 	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
+
+plot:
+	@if [ -z "$(RUN_DIR)" ]; then \
+		run_dir=$$(ls -td $(OUTPUT_DIR)/*/ 2>/dev/null | head -1); \
+		if [ -z "$$run_dir" ]; then echo "No runs found in $(OUTPUT_DIR)"; exit 1; fi; \
+	else \
+		run_dir="$(RUN_DIR)"; \
+	fi; \
+	run_dir=$$(realpath "$$run_dir"); \
+	rm -rf "$$run_dir/plot"; \
+	echo "Generating plots for $$run_dir to $$run_dir/plot"; \
+	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /bin/bash -c " \
+		if [ -d /fuzzing/outputs/main ]; then \
+			instance=main; \
+		elif [ -d /fuzzing/outputs/default ]; then \
+			instance=default; \
+		else \
+			instance=\$$(find /fuzzing/outputs -maxdepth 2 -name fuzzer_stats -exec dirname {} \; | head -n 1 | xargs basename); \
+		fi; \
+		if [ -z \"\$$instance\" ]; then \
+			echo \"Could not find an AFL instance directory in /fuzzing/outputs\"; \
+			exit 1; \
+		fi; \
+		echo \"Plotting instance: \$$instance\"; \
+		afl-plot \"/fuzzing/outputs/\$$instance\" /fuzzing/outputs/plot"
 
 clean:
 	rm -rf "$(OUTPUT_DIR)"
