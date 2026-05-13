@@ -1,7 +1,6 @@
 IMAGE_NAME ?= libsixel-fuzzer
 INSTANCES ?= 4
-TIMEOUT ?= 500
-QEMUTIMEOUT ?= 5000
+TIMEOUT ?= 5000
 OUTPUT_DIR ?= $(CURDIR)/outputs
 
 # Use the current user's UID and GID to avoid root-owned files in the output directory.
@@ -26,13 +25,15 @@ fuzz-threaded:
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
 	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) native
 
+fuzz-qemu-threaded: TIMEOUT = 10000
 fuzz-qemu-threaded:
 	@if ! docker image inspect $(IMAGE_NAME) >/dev/null 2>&1; then echo "Error: Image $(IMAGE_NAME) not found. Run 'make build' first."; exit 1; fi
 	@run_dir="$(OUTPUT_DIR)/qemu-threaded-$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ QEMU outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(QEMUTIMEOUT) qemu
+	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) qemu
 
+fuzz-qemu: TIMEOUT = 10000
 fuzz-qemu:
 	@if ! docker image inspect $(IMAGE_NAME) >/dev/null 2>&1; then echo "Error: Image $(IMAGE_NAME) not found. Run 'make build' first."; exit 1; fi
 	@run_dir="$(OUTPUT_DIR)/qemu-$$(date +%Y%m%d-%H%M%S)"; \
@@ -45,7 +46,7 @@ fuzz-qemu:
 	else \
 		QASAN_FLAG="-e AFL_USE_QASAN=1"; \
 	fi; \
-	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(QEMUTIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
+	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
 
 clean:
 	rm -rf "$(OUTPUT_DIR)"
