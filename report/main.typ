@@ -28,7 +28,7 @@
     lang: "en",
     region: "US",
   )
-  set par(justify: true, leading: 0.55em, first-line-indent: 1.5em)
+  set par(justify: true, leading: 0.65em, spacing: 0.9em, first-line-indent: 1.5em)
   set heading(numbering: "1.1")
   set list(indent: 1.2em, body-indent: 0.5em)
   set enum(indent: 1.2em, body-indent: 0.5em)
@@ -92,7 +92,7 @@
         #abstract
       ]
 
-      v(1.2em)
+
     }
 
     #body
@@ -128,14 +128,14 @@
       affiliation: [EPFL],
     ),
   ),
-  bibliography: bibliography("refs.bib", style: "ieee"),
+  bibliography: none,
 )
 
 = Harness Design
 
 == Selected Entrypoint
 
-For this campaign, we selected the encoding path of `libsixel`, specifically targetting the `sixel_encoder_encode` function rather than the decoding path suggested by the lab guidelines. Indeed, we judged that the encoder represents a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL. This makes the encoder a highly attractive target. Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
+For this campaign, we selected the encoding path of the library, specifically targetting the `sixel_encoder_encode` function rather than the decoding path suggested by the lab guidelines. Indeed, we judged that the encoder represents a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL. This makes the encoder a highly attractiv target. Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
 
 == Considered Alternatives
 
@@ -185,4 +185,3 @@ We built uninstrumented versions of the harness and the library using `gcc` and 
 #text(blue)[
 Report the number of instrumented edges reported by afl-fuzz at startup for (a) the library alone and (b) the final harness binary. Explain why these numbers differ. Then compare your campaign's map density to the total instrumented edges and explain why not all edges were reached. Additionally, measure exec speed under three configurations using the same harness: (1) no sanitizer + fork mode, (2) ASan + fork mode, (3) ASan + persistent mode. Report the three numbers and explain the source of each speedup or slowdown.
 ]
-
