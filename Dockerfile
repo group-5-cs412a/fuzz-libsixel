@@ -66,7 +66,10 @@ RUN gcc /src/harness.c -o /usr/local/bin/sixel-harness-qemu \
 
 # Check if harness is instrumented (main one should be, qemu one should NOT be)
 RUN nm /usr/local/bin/sixel-harness | grep -q "__afl_area_ptr" || (echo "Error: Main harness not instrumented" && exit 1)
-RUN nm /usr/local/bin/sixel-harness-qemu | grep -q "__afl_area_ptr" && (echo "Error: QEMU harness should not be instrumented" && exit 1) || true
+RUN if nm /usr/local/bin/sixel-harness-qemu | grep -q "__afl_area_ptr"; then \
+        echo "Error: QEMU harness should not be instrumented"; \
+        exit 1; \
+    fi
 
 # Setup fuzzing workspace
 WORKDIR /fuzzing
