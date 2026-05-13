@@ -17,7 +17,11 @@ int main(int argc, char *argv[]) {
     char filename[256];
     snprintf(filename, sizeof(filename), "/dev/shm/fuzz_input_%d.gif", getpid());
 
+#ifdef __AFL_COMPILER
+    int count = 1000;
+#else
     int count = 1;
+#endif
     while (__AFL_LOOP(count)) {
         // Rewind stdin, as afl-fuzz will feed the testcase here.
         lseek(STDIN_FILENO, 0, SEEK_SET);
