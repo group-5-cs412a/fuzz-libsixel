@@ -7,6 +7,7 @@
 
 #define CONTROL_SIZE 8
 #define GIF_HEADER_SIZE 6
+#define TRUEVISION_MIN_GIF_SIZE 18
 
 static void
 set_option(sixel_encoder_t *encoder, int option, const char *value)
@@ -28,6 +29,7 @@ int main(int argc, char *argv[]) {
     // We will save the incoming bytes (after the control bytes) to a temp file
     char filename[256];
     int allow_nongif = getenv("SIXEL_HARNESS_ALLOW_NONGIF") != NULL;
+    int truevision_patch = getenv("TRUEVISION_PATCH") != NULL;
     snprintf(filename, sizeof(filename), "/dev/shm/fuzz_input_%d.gif", getpid());
 
     while (__AFL_LOOP(1000)) {
@@ -57,12 +59,19 @@ int main(int argc, char *argv[]) {
         }
 
         write(fd, gif_header, sizeof(gif_header));
+        size_t gif_size = sizeof(gif_header);
 
         char buf[4096];
         while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
             write(fd, buf, n);
+            gif_size += (size_t)n;
         }
         close(fd);
+
+        if (truevision_patch && gif_size <= TRUEVISION_MIN_GIF_SIZE) {
+            unlink(filename);
+            continue;
+        }
 
         sixel_encoder_t *encoder;
         SIXELSTATUS status = sixel_encoder_new(&encoder, NULL);
@@ -96,6 +105,12 @@ int main(int argc, char *argv[]) {
                        palettes[(control[1] >> 3) & 0x07]);
             break;
         }
+        }
+
+        const char *bgcolors[] = {NULL, "#000000", "#FFFFFF", "#FF0000"};
+        int bg_idx = (control[0] >> 2) & 0x03;
+        if (bgcolors[bg_idx]) {
+            set_option(encoder, SIXEL_OPTFLAG_BGCOLOR, bgcolors[bg_idx]);
         }
 
         /* Byte 2: quality and diffusion. */

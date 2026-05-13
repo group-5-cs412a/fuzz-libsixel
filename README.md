@@ -13,6 +13,16 @@ run:
 make fuzz BROAD_LOADER=1
 ```
 
+To skip the short Truevision-triggering inputs during GIF-focused fuzzing, run:
+
+```bash
+make fuzz TRUEVISION_PATCH=1
+```
+
+The same option also works with `make fuzz-threaded`. It passes
+`TRUEVISION_PATCH=1` to the harness, which skips wrapped inputs whose image
+payload is 18 bytes or smaller after excluding the 8-byte control header.
+
 
 ## 2. Build and Run Manually
 
@@ -35,6 +45,10 @@ afl-fuzz -t 1000 -m none -G 65536 -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/
 Set `SIXEL_HARNESS_ALLOW_NONGIF=1` to let mutations that no longer have GIF
 magic bytes reach libsixel's generic image loader. This is useful for broader
 bug discovery but can be much slower.
+
+Set `TRUEVISION_PATCH=1` to discard wrapped inputs whose image payload is not
+greater than 18 bytes. The size check excludes the 8 control bytes consumed by
+the harness.
 
 
 
@@ -59,6 +73,7 @@ gdb /usr/local/bin/sixel-harness
 - **GIF-Focused Seeds**: Initial seeds come from a vendored corpus of small GIF files instead of upstream PNG-heavy samples.
 - **Control Header Mutation**: An eight-byte selector drives valid encoder options before the GIF payload reaches `sixel_encoder_encode()`.
 - **Fast GIF Gate**: By default, the harness skips payloads whose post-header bytes no longer start with `GIF87a` or `GIF89a`. Set `SIXEL_HARNESS_ALLOW_NONGIF=1` for broader loader fuzzing.
+- **Truevision Patch Gate**: Set `TRUEVISION_PATCH=1` to skip image payloads of 18 bytes or less, excluding the 8-byte control header.
 
 `afl-fuzz` is run with `-m none` because ASan needs more virtual memory than AFL's default memory limit allows.
 Leak detection is disabled at runtime with `ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=0` so the campaign focuses on crashing memory errors instead of known process-exit leaks, and to stay compatible with AFL++'s ASan checks.
@@ -87,11 +102,9 @@ Wrapped seed format:
 
 The control header is interpreted by `harness.c` as follows:
 
-- **Byte 0:** Color mode.
-  - `0`: default adaptive palette; byte 1 selects `SIXEL_OPTFLAG_COLORS`.
-  - `1`: high-color mode; no color-count option is set.
-  - `2`: monochrome mode; no color-count option is set.
-  - `3`: builtin palette mode; byte 1 selects the builtin palette.
+- **Byte 0:** Color mode and background color.
+  - `byte0 & 3` selects color mode: `0` default adaptive palette, `1` high-color, `2` monochrome, `3` builtin palette.
+  - `(byte0 >> 2) & 3` selects no background override, `#000000`, `#FFFFFF`, or `#FF0000`.
 - **Byte 1:** Color count or builtin palette detail.
   - Default mode uses `byte1 & 7` to select `2, 4, 8, 16, 32, 64, 128, 256`.
   - Builtin mode uses `(byte1 >> 3) & 7` to select `xterm16, xterm256, vt340mono, vt340color, gray1, gray2, gray4, gray8`.

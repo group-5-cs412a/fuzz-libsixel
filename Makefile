@@ -3,6 +3,7 @@ INSTANCES ?= 4
 OUTPUT_DIR ?= $(CURDIR)/outputs
 SEED_PROFILE ?= fast
 BROAD_LOADER ?= 0
+TRUEVISION_PATCH ?= 0
 
 # Use the current user's UID and GID to avoid root-owned files in the output directory.
 USER_ID ?= $(shell id -u)
@@ -26,16 +27,26 @@ fuzz:
 	else \
 		broad_loader_env=""; \
 	fi; \
+	if [ "$(TRUEVISION_PATCH)" = "1" ]; then \
+		truevision_env="-e TRUEVISION_PATCH=1"; \
+	else \
+		truevision_env=""; \
+	fi; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
 	printf 'Using %s seed corpus\n' "$$seed_dir"; \
-	docker run $(DOCKER_FLAGS) $$broad_loader_env -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t 1000 -m none -G 65536 -i "$$seed_dir" -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
+	docker run $(DOCKER_FLAGS) $$broad_loader_env $$truevision_env -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t 1000 -m none -G 65536 -i "$$seed_dir" -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
 
 fuzz-threaded:
 	@run_dir="$(OUTPUT_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
+	if [ "$(TRUEVISION_PATCH)" = "1" ]; then \
+		truevision_env="-e TRUEVISION_PATCH=1"; \
+	else \
+		truevision_env=""; \
+	fi; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/scripts/launch_fuzzer.sh $(INSTANCES)
+	docker run $(DOCKER_FLAGS) $$truevision_env -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/scripts/launch_fuzzer.sh $(INSTANCES)
 
 clean:
 	rm -rf "$(OUTPUT_DIR)"
