@@ -9,7 +9,7 @@ USER_ID ?= $(shell id -u)
 GROUP_ID ?= $(shell id -g)
 DOCKER_FLAGS = --rm -it --user $(USER_ID):$(GROUP_ID)
 
-.PHONY: build fuzz fuzz-threaded fuzz-qemu clean
+.PHONY: build fuzz fuzz-threaded fuzz-qemu-threaded fuzz-qemu clean
 
 build:
 	docker build -t $(IMAGE_NAME) .
