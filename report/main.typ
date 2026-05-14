@@ -364,12 +364,15 @@ All commands necessary for the full triage, as well as the stacktrace are in the
 
 = Attack Surface Analysis
 
-
 // Name two real-world applications that use your target library and describe a concrete attack scenario. Then identify at least two code paths in those applications that your harness does not exercise, and explain why these gaps matter for security.
 
 The `libsixel` GitHub repository lists several applications that use the library such as `w3m`(text based web browser and pager) and RetroArch (frontend for video game system emulators).
 
 A concrete attack scenario for `w3m` could be a malicious web page containing a specially crafted GIF image that exploits the heap-based buffer overflow in `libsixel`'s GIF decoder (as described in the previous section). When a user visits the page with `w3m`, the vulnerable code path is triggered, potentially allowing an attacker to execute arbitrary code.
+
+Our harness purely explores GIF encoding through `sixel_encoder_encode`, thus ignores any other input formats and the topmost functions. Security during parsing needs to be ensured, especially when used in CLI browsers or `img2sixel` which might use `sixel_helper_load_image_file` from `loader.c`. Symmetrically, `writer.c` has a smaller attack surface, as there are fewer uses and programs which need decoding. 
+
+`tosixel.c` contains missed paths which would be interesting to explore, since it manages the actual rendering after the decoding, even though its input is more abstract and filtered. (TODO: REMOVE ?)
 
 = Binary-Only Fuzzing with QEMU Mode
 
