@@ -370,25 +370,14 @@ The `libsixel` GitHub repository lists several applications that use the library
 
 A concrete attack scenario for `w3m` could be a malicious web page containing a specially crafted GIF image that exploits the heap-based buffer overflow in `libsixel`'s GIF decoder (as described in the previous section). When a user visits the page with `w3m`, the vulnerable code path is triggered, potentially allowing an attacker to execute arbitrary code.
 
-Our harness purely explores GIF encoding through `sixel_encoder_encode`, thus ignores any other input formats and the topmost functions. Security during parsing needs to be ensured, especially when used in CLI browsers or `img2sixel` which might use `sixel_helper_load_image_file` from `loader.c`. Symmetrically, `writer.c` has a smaller attack surface, as there are fewer uses and programs which need decoding. 
-
-`tosixel.c` contains missed paths which would be interesting to explore, since it manages the actual rendering after the decoding, even though its input is more abstract and filtered. (TODO: REMOVE ?)
+Our harness focused on GIF encoding leaves two critical security gaps. It ignores non-GIF formats (JPEG, PNG, etc.) handled by `sixel_helper_load_image_file` in `loader.c`. These formats involve complex parsing logic and dependencies that remain unexercised. It also misses the Sixel-to-Pixel decoding path, such as `sixel_decode` in `fromsixel.c`. This is a critical area for terminal security, as this code parses untrusted characters sent by remote servers, a bug here could lead to shell access.
 
 = Binary-Only Fuzzing with QEMU Mode
-
-To evaluate the library in a black-box scenario, we ran a campaign against an uninstrumented binary using AFL++ QEMU mode (`-Q`). We built vanilla versions of the harness and `libsixel` (v1.8.7) using standard `gcc` / `g++`, confirming via `nm` and through the library build configurations that no sanitizer symbols or instrumentation points were present.
-
-The full performance comparison after 300 seconds is reported in @qemu-performance-table.
-
-The discrepancies between these metrics come from the differences in how each mode collects coverage and executes the target:
-
-1. *Execution Speed*: The instrumented campaign is $tilde$30x faster. This is primarily due to the *persistent mode* (`__AFL_LOOP`), which allows the fuzzer to reuse the same process for multiple test cases. In contrast, the QEMU campaign lacks persistent mode and has the significant overhead of Just-In-Time (JIT) binary translation for every instruction.
-
-2. *Edges Discovered*: QEMU mode discovered $tilde$35% more edges despite having 30x fewer executions. This is because compile-time instrumentation only sees branches in the source code it compiled. QEMU mode instruments the entire process address space during emulation, capturing paths within shared system libraries (e.g., `libpng`, `libjpeg`, `libc`) that are black-boxes to the instrumented version.
-
-3. *Corpus Count*: The native fuzzer's higher throughput allowed it to explore a larger mutation space, leading to a larger corpus within the same timeframe.
-
-Despite the performance penalty, the QEMU campaign, when combined with `QASan` (QEMU-AddressSanitizer), successfully identified memory safety issues. By disabling the `TRUEVISION` patch (which previously filtered out small inputs), we reproduced a heap-buffer underflow in the file format detection logic. While a vanilla binary might "silently" corrupt memory without crashing, `QASan` intercepts memory-related library calls (like `memcmp`) and validates their arguments against a shadow memory map, promoting these "soft" corruptions to detectable crashes.
+We evaluated `libsixel` (v1.8.7) in a black-box scenario using AFL++ QEMU mode (`-Q`). Vanilla versions of the harness and library were built using standard `gcc`/`g++`, with `nm` and build configs confirming the absence of instrumentation or sanitizer symbols. Performance after 300s is summarized in @qemu-performance-table:
+1. *Execution Speed*: Instrumented mode is $tilde$30x faster due to *persistent mode* (`__AFL_LOOP`) vs. QEMU's JIT overhead and the cost of forking for each execution.
+2. *Edges Discovered*: QEMU mode found $tilde$35% more edges by instrumenting the entire address space, capturing paths in shared libraries (e.g., `libc`) that are black-boxes to source instrumentation.
+3. *Corpus Count*: Higher throughput leads to a higher exploration rate and corpus.
+Combined with `QASan`, we identified a heap-buffer underflow after disabling the `TRUEVISION` patch (which filters tiny inputs). `QASan` validates memory library calls against a shadow map, promoting "soft" corruptions to detectable crashes.
 
 = Instrumentation Depth and Performance
 #text(blue)[
