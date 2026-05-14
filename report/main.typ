@@ -225,7 +225,7 @@ Finally the resize and crop options are chosen from small fixed dictionaries. Th
 
 // List every compiler flag and patch you applied to the target library. For each one, explain what it does and what would happen if you omitted it. If you patched the library (e.g., removing checksums), explain the effect on path discovery.
 == Target Version 
-We built *`libsixel v1.8.7`*, the latest stable release of the library At the time of writting two releases candidates were published (rc1, rc2), they address security vulnerabilities in the encoding path: These CVEs acts as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
+We built *`libsixel v1.8.7`*, the latest stable release of the library. At the time of writting, two releases candidates were published (r1, r2), they address security vulnerabilities in the encoding path: These CVEs acts as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
 
 == Coverage Instrumentation
 
@@ -306,9 +306,30 @@ The numbers are reported in @strategy-yield-summary
 
 = Campaign Analysis
 
-#text(blue)[
-Include your afl-plot edges graph and AFL++ status screen screenshot. Report stability, corpus count, map density, and cycles done. Describe the shape of the edges curve and argue whether the campaign reached saturation.
-]
+The main greybox campaign *ran for an hour*.
+The AFL++ status screen is shown in @status-screen, and the `afl-plot` graphs are shown in
+@edges-plot, @exec-speed-plot, @high-freq-plot, and @low-freq-plot. 
+
+At the end of the run, AFL++ reported a *corpus count of 1515 inputs*, with 122 favored
+items and 242 inputs that discovered new edges.
+
+The campaign completed two full
+queue cycles (not shown in the status screen). 
+It also found *51 unique crashes* and 58 saved hangs.
+
+AFL++ reported *99.96% stability*, which means that repeated executions of the same inputs almost always produced the same coverage. 
+
+The bitmap density was 10.34% for the whole corpus, with 5.44 bits per tuple. This indicates that the campaign
+reached a meaningful part of the instrumented program, while still remaining far from bitmap saturation.
+
+The edge curve rises quickly at the beginning of the run and then continues as smaller step increases. This is the expected shape for a useful fuzzing campaign: AFL++ first discovers shallow parsing paths from the initial GIF
+seeds, then later reaches deeper behavior through mutation and queue cycling.
+
+The status screen reports that a new path had been found 58 seconds before the screenshot, so the campaign was still productive when it was stopped.
+For this reason, *we do not consider the campaign saturated*. The run is long enough to validate the harness and demonstrate that AFL++ reaches meaningful
+decoder behavior, especially since it found 51 unique crashes. 
+However, because new paths were still being found near the end of the hour long run, a longer campaign, would likely discover additional coverage and possibly more crashes.
+
 = Crash Triage
 
 // If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
@@ -423,6 +444,52 @@ Report the number of instrumented edges reported by afl-fuzz at startup for (a) 
 
 #v(1em)
 
+== Campaign analysis
+
+#figure(
+  image(
+    "./img/AFL_status_screen.png",
+    width: 100%,
+  ), caption: [AFL++ status screen during the greybox campaign.]
+) <status-screen>
+
+#v(1em)
+
+#figure(
+  image(
+    "./img/edges.png",
+    width: 100%,
+  ), caption: [AFL++ edge coverage over time.]
+) <edges-plot>
+
+#v(1em)
+
+#figure(
+  image(
+    "./img/exec_speed.png",
+    width: 100%,
+  ), caption: [AFL++ execution speed over time.]
+) <exec-speed-plot>
+
+#v(1em)
+
+#figure(
+  image(
+    "./img/high_freq.png",
+    width: 100%,
+  ), caption: [High-frequency AFL++ plot metrics.]
+) <high-freq-plot>
+
+#v(1em)
+
+#figure(
+  image(
+    "./img/low_freq.png",
+    width: 100%,
+  ), caption: [Low-frequency AFL++ plot metrics.]
+) <low-freq-plot>
+
+
 == Crash triage <appendix-triage>
 
 #figure(
@@ -440,7 +507,7 @@ SUMMARY: AddressSanitizer: heap-buffer-overflow /src/libsixel/src/fromgif.c:241:
 ```], caption: "Backtrace of crash 47.")
 
  #v(1em)
-*afl-tmin*
+=== afl-tmin
 
 #figure(
   simple-code[
