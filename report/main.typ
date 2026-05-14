@@ -349,21 +349,8 @@ Name two real-world applications that use your target library and describe a con
 = Binary-Only Fuzzing with QEMU Mode
 
 To evaluate the library in a black-box scenario, we ran a campaign against an uninstrumented binary using AFL++ QEMU mode (`-Q`). We built vanilla versions of the harness and `libsixel` (v1.8.7) using standard `gcc` / `g++`, confirming via `nm` and through the library build configurations that no sanitizer symbols or instrumentation points were present.
-#text(red)[TODO: Move Table to Appendix to stay within 4 pages? Or is it smol enough]
-#figure(
-  table(
-    columns: (auto, 1fr, 1fr),
-    inset: (x: 5pt, y: 3pt),
-    stroke: 0.5pt,
-    align: (x, y) => (left, center, center).at(x) + horizon,
-    fill: (x, y) => if y == 0 { gray.lighten(80%) },
-    [*Axis*], [*Instrumented*], [*QEMU Mode*],
-    [Exec Speed], [2,670.5 execs/s], [90.1 execs/s],
-    [Edges Discovered], [2,001], [2,696],
-    [Corpus Count], [1,151], [565],
-  ),
-  caption: [Performance comparison after 300s of wall-clock time.],
-)
+
+The full performance comparison after 300 seconds is reported in @qemu-performance-table.
 
 The discrepancies between these metrics come from the differences in how each mode collects coverage and executes the target:
 
@@ -380,6 +367,7 @@ Despite the performance penalty, the QEMU campaign, when combined with `QASan` (
 Report the number of instrumented edges reported by afl-fuzz at startup for (a) the library alone and (b) the final harness binary. Explain why these numbers differ. Then compare your campaign's map density to the total instrumented edges and explain why not all edges were reached. Additionally, measure exec speed under three configurations using the same harness: (1) no sanitizer + fork mode, (2) ASan + fork mode, (3) ASan + persistent mode. Report the three numbers and explain the source of each speedup or slowdown.
 ]
 
+#colbreak()
 
 = Appendix 
 
@@ -416,6 +404,7 @@ Report the number of instrumented edges reported by afl-fuzz at startup for (a) 
 )
 
 #v(1em)
+
 
 == Fuzzing Strategy Yields
 
@@ -512,3 +501,18 @@ docker run --rm \
   /bin/bash -lc 'img2sixel -o /dev/null -g -p 256 -q auto -d auto -t rgb -f auto -s auto -E auto -B "#FF0000" -l auto /host/triage/id000047.min.gif'
   ```], caption : "Running img2sixel with minimised input"
   )
+
+== QEMU Performance Comparison
+
+#figure(
+  lab-table(
+    columns: (1.15fr, 1fr, 1fr),
+    [*Axis*], [*Instrumented*], [*QEMU mode*],
+    [Exec speed], [2,670.5 exec/s], [90.1 exec/s],
+    [Edges discovered], [2,001], [2,696],
+    [Corpus count], [1,151], [565],
+  ),
+  caption: [Performance comparison after 300 seconds of wall-clock time.],
+) <qemu-performance-table>
+
+#v(1em)
