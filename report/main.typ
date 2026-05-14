@@ -355,7 +355,7 @@ The discrepancies between these metrics come from the differences in how each mo
 
 3. *Corpus Count*: The native fuzzer's higher throughput allowed it to explore a larger mutation space, leading to a larger corpus within the same timeframe.
 
-Despite the performance penalty, the QEMU campaignl, when combined with `QASan` (QEMU-AddressSanitizer), successfully identified memory safety issues. By disabling the `TRUEVISION` patch (which previously filtered out small inputs), we reproduced a heap-buffer underflow in the file format detection logic. While a vanilla binary might "silently" corrupt memory without crashing, `QASan` intercepts memory-related library calls (like `memcmp`) and validates their arguments against a shadow memory map, promoting these "soft" corruptions to detectable crashes.
+Despite the performance penalty, the QEMU campaign, when combined with `QASan` (QEMU-AddressSanitizer), successfully identified memory safety issues. By disabling the `TRUEVISION` patch (which previously filtered out small inputs), we reproduced a heap-buffer underflow in the file format detection logic. While a vanilla binary might "silently" corrupt memory without crashing, `QASan` intercepts memory-related library calls (like `memcmp`) and validates their arguments against a shadow memory map, promoting these "soft" corruptions to detectable crashes.
 
 = Instrumentation Depth and Performance
 #text(blue)[
