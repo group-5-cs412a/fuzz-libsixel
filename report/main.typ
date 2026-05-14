@@ -12,15 +12,8 @@
   text(size: 8pt, code),
 )
 
-
-#let simple-code(code) = code-frame(
-  inset: (x: 0.45em, y: 0.45em),
-  radius: 3pt,
-  text(size: 8pt, code),
-)
-
 #let lab-code(
-  lang: "bash",
+  lang: "text",
   numbering: "1",
   body,
 ) = sourcecode(
@@ -29,6 +22,35 @@
   frame: lab-code-frame,
   body,
 )
+
+#let simple-code-frame(code) = code-frame(
+  stroke: none,
+  fill: rgb("#f7f9fc"),
+  inset: (x: 0.25em, y: 0.25em),
+  text(size: 6pt, code),
+)
+#let  simple-code(
+  lang: "text",
+  numbering: "1",
+  body,
+) = sourcecode(
+  lang: lang,
+  numbering: numbering,
+  frame: simple-code-frame,
+  body,
+)
+
+#let lab-table(..args) = {
+  set text(size: 8pt)
+  table(
+    stroke: 0.45pt + rgb("#6b8fca"),
+    fill: (x, y) => if y == 0 { rgb("#eef3fb") } else { none },
+    inset: (x: 4.5pt, y: 3.5pt),
+    align: (x, y) => if y == 0 { center + horizon } else { center + horizon },
+    ..args,
+  )
+}
+
 
 
 #let usenix(
@@ -361,4 +383,132 @@ Report the number of instrumented edges reported by afl-fuzz at startup for (a) 
 
 = Appendix 
 
+== Fuzzing Speed Measurements
 
+#figure(
+  lab-table(
+    columns: (1.25fr, 1fr, 0.8fr, 1fr, 1.25fr),
+    [*Profile*], [*Loader*], [*Time*], [*Execs*], [*Speed*],
+    [`fast`], [`0`], [74s], [241,802], [*3235.72 exec/s*],
+    [`extended`], [`0`], [73s], [195,386], [*2656.29 exec/s*],
+    [`fast`], [`1`], [74s], [124,718], [*1670.21 exec/s*],
+    [`extended`], [`1`], [73s], [51,441], [*698.60 exec/s*],
+  ),
+  caption: [AFL++ speed comparison across seed profile and loader configurations.],
+)
+
+#v(1em)
+
+#figure(
+  lab-table(
+    columns: (1.25fr, 1fr, 1fr),
+    [*Metric*], [*`-t 1000`*], [*`-t 5000`*],
+    [Run time], [74s], [74s],
+    [Execs done], [227,021], [215,103],
+    [Speed], [*3038.45 exec/s*], [*2878.36 exec/s*],
+    [Corpus count], [717], [762],
+    [Bitmap coverage], [9.34%], [9.61%],
+    [Edges found], [1853], [1905],
+    [Crashes], [26], [29],
+    [Hangs], [8], [0],
+  ),
+  caption: [Timeout A/B test using `SEED_PROFILE=fast BROAD_LOADER=0`.],
+)
+
+#v(1em)
+
+== Fuzzing Strategy Yields
+
+#figure(
+  lab-table(
+    columns: (1.1fr, 1.75fr, 1.15fr),
+    [*Strategy*], [*Yield*], [*Impact*],
+    [Bit flips], [29/40.3k, 20/40.3k, 16/40.2k], [Small],
+    [Byte flips], [2/5035, 2/5025, 4/5005], [Small],
+    [Arithmetics], [86/351k, 31/696k, 27/693k], [Moderate],
+    [Known ints], [3/45.1k, 5/189k, 16/279k], [Small],
+    [*Dictionary*], [*136/458k*, 0/459k, 0/0, 0/0], [*Useful*],
+    [*Havoc/splice*], [*973/1.88M*, 0/0], [*Dominant*],
+    [Py/custom/rq], [unused, unused, unused, unused], [Not used],
+    [Trim/eff], [8.57%/481k, 98.83%], [Corpus cleanup],
+  ),
+  caption: [AFL++ strategy-yield summary. Havoc produced the most interesting inputs, while dictionary mutations also contributed meaningful new paths.],
+)
+
+#v(1em)
+
+== Crash triage
+
+#figure(
+simple-code[```
+ERROR: AddressSanitizer: heap-buffer-overflow
+WRITE of size 1
+  #0 0x... in gif_init_frame /src/libsixel/src/fromgif.c:241:61
+  #1 0x... in load_gif /src/libsixel/src/fromgif.c:675:22
+  #2 0x... in load_with_builtin /src/libsixel/src/loader.c:948:18
+  #3 0x... in sixel_helper_load_image_file /src/libsixel/src/loader.c:1462:18
+  #4 0x... in sixel_encoder_encode /src/libsixel/src/encoder.c:1816:14
+  #5 0x... in main /src/harness.c:215:9
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow /src/libsixel/src/fromgif.c:241:61 in gif_init_frame 
+```], caption: "Backtrace of crash 47.")
+
+ #v(1em)
+*afl-tmin*
+
+#figure(
+  simple-code[
+    ``` mkdir -p triage
+
+docker run --rm \
+  -v "$PWD:/host" \
+  -e ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1 \
+  libsixel-fuzzer \
+  afl-tmin -m none -t 1000 \
+  -i '/host/outputs/20260514-142308/default/crashes/id:000047...' \
+  -o /host/triage/id000047.min \
+  -- /usr/local/bin/sixel-harness
+  ```
+  ], caption:"Command to minimise the seed."
+)
+
+#v(1.0em)
+
+#figure(
+  simple-code()[`
+Read 51 bytes from input.
+Program exits with a signal, minimizing in crash mode.
+File size reduced by: 23.53% (to 39 bytes)
+Characters simplified: 69.23%
+Number of execs done: 249
+Output written to: triage/id000047.min`
+  ],
+  caption: "Afl-tmin result."
+)
+
+#v(1.0em)
+
+#figure(
+  simple-code[
+    ```
+    docker run --rm \
+  -v "$PWD:/host" \
+  -e ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1 \
+  libsixel-fuzzer \
+  /bin/bash -lc '/usr/local/bin/sixel-harness < /host/triage/id000047.min'
+  ```
+  ], caption:"Reproducing the crash with minimised seed."
+)
+
+#v(1.0em)
+
+#figure(
+  simple-code[
+    ```
+docker run --rm \
+  -v "$PWD:/host" \
+  -e ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1 \
+  libsixel-fuzzer \
+  /bin/bash -lc 'img2sixel -o /dev/null -g -p 256 -q auto -d auto -t rgb -f auto -s auto -E auto -B "#FF0000" -l auto /host/triage/id000047.min.gif'
+  ```], caption : "Running img2sixel with minimised input"
+  )
