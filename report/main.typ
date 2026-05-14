@@ -2,6 +2,35 @@
 // It uses US letter paper, a 7in text block, two 3.33in columns, Times-like
 // typography, and an unnumbered proceedings-style title block.
 
+#import "@preview/codelst:2.0.2": sourcecode, code-frame
+
+#let lab-code-frame(code) = code-frame(
+  fill: rgb("#f7f9fc"),
+  stroke: 0.7pt + rgb("#6b8fca"),
+  inset: (x: 0.45em, y: 0.45em),
+  radius: 3pt,
+  text(size: 8pt, code),
+)
+
+
+#let simple-code(code) = code-frame(
+  inset: (x: 0.45em, y: 0.45em),
+  radius: 3pt,
+  text(size: 8pt, code),
+)
+
+#let lab-code(
+  lang: "bash",
+  numbering: "1",
+  body,
+) = sourcecode(
+  lang: lang,
+  numbering: numbering,
+  frame: lab-code-frame,
+  body,
+)
+
+
 #let usenix(
   title: none,
   authors: (),
@@ -155,7 +184,12 @@ The first 8-bytes are parsed by the harness and mapped to configuration options.
 
 The remaining bytes represents the image and are written to a temporary file. The latter is passed to `sixel_encoder_encode`, which expects a file path as input. Note that the harness receives each AFL++ test case through `stdin`, rather than through the usual `@@` filename argument, avoiding I/0 overhead.
 
-The main data flow is therefore: \  `AFL++ testcase -> stdin -> [8-byte option header] + [GIF payload] -> temporary GIF file -> sixel_encoder_encode`.\
+The main data flow is therefore: 
+
+#simple-code[
+
+`AFL++ testcase -> stdin -> [8-byte option header] + [GIF payload] -> temporary GIF file -> sixel_encoder_encode`.
+]
 This lets AFL++ mutate both the image contents and the encoder configuration. The option bytes are mapped to fixed valid strings, to ensure the fuzzer explores many combinations of `libsixel` behavior.
 
 
@@ -181,22 +215,35 @@ We built *`libsixel v1.8.7`*, the latest stable release of the library At the ti
 == Coverage Instrumentation
 
 We instrumented the library with AFL++'s `afl-clang-lto` / `afl-clang-lto++`, which inserts compile-time edge coverage. This gives AFL++ precise feedback for input selection. 
-`CC=afl-clang-lto CXX=afl-clang-lto++` 
+#sourcecode(
+  lang: "bash",
+  frame: lab-code-frame,
+)[```bash
+CC=afl-clang-lto CXX=afl-clang-lto++
+```]
 
 == *AddressSanitizer*
 
 We also built the library with AddressSanitizer (ASan) to detect memory safety bugs. This allows us to catch memory corruption issues that might not immediately cause a crash, improving our chances of finding security vulnerabilities.
 If omitted, AFL++ would still find hard crashes, but many invalid reads/writes would remain silent or become harder-to-reproduce later crashes.
-`ENV AFL_USE_ASAN=1`
+#sourcecode(
+  lang: "bash",
+  frame: lab-code-frame,
+)[```bash
+ENV AFL_USE_ASAN=1
+```]
 
 Because ASan reserves a large virtual address space, we run AFL++ with `-m none`; otherwise AFL++'s default memory limit can kill valid ASan-instrumented executions.
 
-At runtime, we used \
-```
-ASAN_OPTIONS=detect_leaks=0
+At runtime, we used the following ASAN_OPTIONS\
+#sourcecode(
+  lang: "bash",
+  frame: lab-code-frame,
+)[```bash
+detect_leaks=0
 abort_on_error=1
 symbolize=0
-```
+```]
 Leak detection was disabled because the persistent harness intentionally runs many iterations in one process, and leak reports at process exit are less useful for this campaign than immediate memory-safety crashes. `abort_on_error=1` ensures sanitizer findings terminate the process in a way AFL++ records as a crash. `symbolize=0` avoids the overhead of online symbolization during fuzzing; symbolization can be done later during triage.
 
 
