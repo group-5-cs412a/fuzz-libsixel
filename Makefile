@@ -5,6 +5,7 @@ OUTPUT_DIR ?= $(CURDIR)/outputs
 SEED_PROFILE ?= fast
 BROAD_LOADER ?= 0
 TRUEVISION_PATCH ?= 0
+USE_DICT ?= 0
 
 # Use the current user's UID and GID to avoid root-owned files in the output directory.
 USER_ID ?= $(shell id -u)
@@ -33,10 +34,15 @@ fuzz:
 	else \
 		truevision_env=""; \
 	fi; \
+	if [ "$(USE_DICT)" = "1" ]; then \
+		dict_flag="-x /fuzzing/gif.dict"; \
+	else \
+		dict_flag=""; \
+	fi; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
 	printf 'Using %s seed corpus\n' "$$seed_dir"; \
-	docker run $(DOCKER_FLAGS) $$broad_loader_env $$truevision_env -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t $(TIMEOUT) -m none -G 65536 -i "$$seed_dir" -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
+	docker run $(DOCKER_FLAGS) $$broad_loader_env $$truevision_env -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t $(TIMEOUT) -m none -G 65536 $$dict_flag -i "$$seed_dir" -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
 
 fuzz-threaded:
 	@run_dir="$(OUTPUT_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
@@ -70,7 +76,12 @@ fuzz-qemu:
 	else \
 		QASAN_FLAG="-e AFL_USE_QASAN=1"; \
 	fi; \
-	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
+	if [ "$(USE_DICT)" = "1" ]; then \
+		dict_flag="-x /fuzzing/gif.dict"; \
+	else \
+		dict_flag=""; \
+	fi; \
+	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none $$dict_flag -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
 
 plot:
 	@if [ -n "$(RUN_DIR)" ]; then \

@@ -78,6 +78,7 @@ COPY corpus/wrapped_gif/*.gif /fuzzing/seeds/
 COPY corpus/wrapped_gif_extended/*.gif /fuzzing/seeds_extended/
 COPY sixel_crashes/ /fuzzing/sixel_crashes/
 COPY scripts/*.sh /fuzzing/scripts/
+COPY gif.dict /fuzzing/gif.dict
 
 # Use 755 for non-root user compatibility
 RUN chmod +x /fuzzing/scripts/*.sh && chmod 755 /fuzzing /fuzzing/scripts

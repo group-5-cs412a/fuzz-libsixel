@@ -25,6 +25,16 @@ The same option also works with `make fuzz-threaded`. It passes
 `TRUEVISION_PATCH=1` to the harness, which skips wrapped inputs whose image
 payload is 18 bytes or smaller after excluding the 8-byte control header.
 
+To use the GIF dictionary during fuzzing, run:
+
+```bash
+make fuzz USE_DICT=1
+```
+
+The dictionary file (`gif.dict`) contains common GIF format keywords and structures
+that aims to guide AFL++ mutations towards more meaningful GIF inputs. The `USE_DICT` flag works with `make fuzz`, `make fuzz-threaded`,
+and `make fuzz-qemu`.
+
 
 ## 2. Build and Run Manually
 
@@ -51,9 +61,6 @@ bug discovery but can be much slower.
 Set `TRUEVISION_PATCH=1` to discard wrapped inputs whose image payload is not
 greater than 18 bytes. The size check excludes the 8 control bytes consumed by
 the harness.
-
-
-
 
 ## 3. Triaging Crashes
 
