@@ -158,7 +158,7 @@
   title: [Fuzzing Libsixel \
     A report for CS-412],
   abstract: [
-    This report details the design, executions and analysis of a coverage guided fuzzing campaign on the open-source library `libsixel` using the AFL++ fuzzer. The target repository was pinned to version 1.8.7, to ensure reproducibility.
+    This report details the design, executions and analysis of a coverage guided fuzzing campaign on version 1.8.7 of the open-source library `libsixel` using the AFL++ fuzzer.
 
     `libsixel` is an encoder/decoder library for SIXEL, an image format for printer and terminal imaging.
 
@@ -187,12 +187,10 @@
 
 For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
-Even tough the guidelines suggested fuzzing the decoding path, recently identified vulnerabilities were due to bugs in the encoding path.
+Even tough the guidelines suggested fuzzing the decoding path, recently identified vulnerabilities were due to bugs in the encoding path (see #link("https://nvd.nist.gov/vuln/detail/CVE-2026-33018")[CVE-2026-33018]).
 This made the encoder a highly attractive target.
 
 We initially considered fuzzing the high-level `img2sixel` function. However, we rejected this approach because high-level wrappers introduce unnecessary overhead (e.g. command-line argument parsing, I/O operations, ...). By writing a custom harness directly around `sixel_encoder_encode`, we skip all non-encoding related functionality.
-
-We also considered using a PNG corpus, but due to strict checks by the parsing library (`libpng`), our fuzzer was not able to reach the encoding logic. Inspired by the recent CVE, we switched to a corpus of GIF files, which are not subject to such strict checks and are still able to trigger the encoding logic.
 
 == Data Flow and Guards
 Each AFL ++ test case is split into two parts: a 8-byte control header and the raw image payload.
@@ -287,9 +285,9 @@ The optional `TRUEVISION_PATCH=1` setting in our setup is not a patch to the tar
 
 = Seed Corpus and Dictionary
 // Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
-We selected a raw seed corpus of 10 small GIF files that cover a variety of features of the GIF format. The corpus includes both `GIF87a` and `GIF89a` files, 1x1 edge-case images, transparent GIFs, interlaced and non-interlaced variants of the same image, small 32x32 thumbnails, and larger 100x100 images. This gave AFL++ structurally valid starting points while keeping dry-run and mutation cost low.
+We selected a raw seed corpus of 10 small GIF files that cover a variety of features of the GIF format. The corpus includes both `GIF87a` and `GIF89a` files, 1x1 edge-case images, transparent GIFs, interlaced and non-interlaced variants of the same image, small 32x32 thumbnails, and larger 100x100 images.
 
-One seed was selected in particular because it is a proof-of-concept input for the vulnerability classes we aimed to rediscover (`poc1_gif_oob.gif`), more on this bug in Section 4. 
+One seed was selected in particular (`poc1_gif_oob.gif`) because it is a proof-of-concept input for the vulnerability classes we aimed to rediscover, more on this in Section 4. 
 
 Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header described earlier, yielding inputs of the form `control header || GIF payload`.
 
@@ -300,10 +298,13 @@ The AFL++ strategy-yield table shows that dictionary-based mutations contributed
 
 The numbers are reported in @strategy-yield-summary 
 
+== Dictionary
+To optimize the mutation process, we provided AFL++ with a GIF Dictionnary (which can be found #link("https://gitedu.hesge.ch/stefan.antun/aflplusplus/-/blob/ea265a1c547ab32451092af27d3b686190fdeaba/dictionaries/gif.dict")[at this link]). The fuzzer can therefore directly inject these known tokens (headers, section markers, etc.) instead of having to discover them through random mutations.
+
 
 = Campaign Analysis
 
-The main greybox campaign *ran for an hour*.
+The main greybox campaign *ran for over an hour*.
 The AFL++ status screen is shown in @status-screen, and the `afl-plot` graphs are shown in
 @edges-plot, @exec-speed-plot, @high-freq-plot, and @low-freq-plot. 
 
@@ -335,18 +336,16 @@ However, because new paths were still being found near the end of the hour long 
 // If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
 
 
-Crash selected: AFL++ 
-
-One of the two distinct crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder. The input reaches
-`load_gif()`, which calls`gif_init_frame()`. AddressSanitizer reports an out-of-bounds
+One of the two distinct crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder.
+The rest of this section analyze `crash id:000047 from findings/default/crashes`, which is one of the many inputs that triggers this bug.  
+The input `load_gif()`, which calls `gif_init_frame()`. AddressSanitizer reports an out-of-bounds
 write at fromgif.c:241:
 
-    `frame->palette[pg->transparent * 3 + 0] = bgcolor[0];`
+    #block(text(size: 9.5pt)[
+    `frame->palette[pg->transparent * 3 + 0] = bgcolor[0]`
+    ]);
 
-The root cause is that the GIF transparency index from the Graphic Control Extension is
-used as an index into frame->palette without checking that it is smaller than the number
-of palette entries. In the crashing input, the transparent index is 0xdf, while the GIF is
-a tiny 1x1 image with a much smaller palette. This causes writes past the heap allocation
+The root cause is that the GIF transparency index from the Graphic Control Extension is used as an index into frame->palette without checking that it is smaller than the number of palette entries. In the crashing input, the transparent index is 0xdf, while the GIF is a tiny 1x1 image with a much smaller palette. This causes writes past the heap allocation
 for frame->palette.
 
 Under ASan the program aborts with SIGABRT, without ASan the
