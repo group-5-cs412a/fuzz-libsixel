@@ -368,10 +368,11 @@ A concrete attack scenario for `w3m` could be a malicious web page containing a 
 Our harness focused on GIF encoding leaves two critical security gaps. It ignores non-GIF formats (JPEG, PNG, etc.) handled by `sixel_helper_load_image_file` in `loader.c`. These formats involve complex parsing logic and dependencies that remain unexercised. It also misses the Sixel-to-Pixel decoding path, such as `sixel_decode` in `fromsixel.c`. This is a critical area for terminal security, as this code parses untrusted characters sent by remote servers; a bug here could lead to shell access.
 
 = Binary-Only Fuzzing with QEMU Mode
-We evaluated `libsixel` (v1.8.7) in a black-box scenario using AFL++ QEMU mode (`-Q`). Vanilla versions of the harness and library were built using standard `gcc`/`g++`, with `nm` and build configs confirming the absence of instrumentation or sanitizer symbols. Performance after 300s is summarized in @qemu-performance-table:
-1. *Execution Speed*: Instrumented mode is $tilde$30x faster due to *persistent mode* (`__AFL_LOOP`) vs. QEMU's JIT overhead and the cost of forking for each execution.
-2. *Edges Discovered*: QEMU mode found $tilde$35% more edges by instrumenting the entire address space, capturing paths in shared libraries (e.g., `libc`) that are black-boxes to source instrumentation.
-3. *Corpus Count*: Higher throughput leads to a higher exploration rate and a larger corpus.
+We evaluated `libsixel` (v1.8.7) in a black-box scenario using AFL++ QEMU mode (`-Q`). Vanilla versions of the harness and library were built using standard `gcc`/`g++` with no instrumentation or sanitizers. Performance after 30 minutes is summarized in @qemu-performance-table:
+1. #link(<qemu-exec-speed-plot>)[*Execution Speed*]: Instrumented mode is $tilde$5.6x faster (averaging $tilde$632 exec/s vs $tilde$113 exec/s) due to *persistent mode* (`__AFL_LOOP`) vs. QEMU's JIT overhead and the cost of forking for each execution.
+2. #link(<qemu-edges-plot>)[*Edges Discovered*]: QEMU mode found $tilde$38% more edges (2,826 vs 2,039) by instrumenting the entire address space, capturing paths in shared libraries (e.g., `libc`) that are black-boxes to source instrumentation.
+3. *Corpus Count*: Higher throughput in the instrumented mode leads to a higher exploration rate and a larger corpus (1,332 vs 754).
+
 Combined with `QASan`, we identified a heap-buffer underflow after disabling the `TRUEVISION` patch (which filters tiny inputs). `QASan` validates memory library calls against a shadow map, promoting "soft" corruptions to detectable crashes.
 
 = Instrumentation Depth and Performance
@@ -596,11 +597,27 @@ docker run --rm \
   lab-table(
     columns: (1.15fr, 1fr, 1fr),
     [*Axis*], [*Instrumented*], [*QEMU mode*],
-    [Exec speed], [2,670.5 exec/s], [90.1 exec/s],
-    [Edges discovered], [2,001], [2,696],
-    [Corpus count], [1,151], [565],
+    [Exec speed], [632 exec/s], [113 exec/s],
+    [Edges discovered], [2,039], [2,826],
+    [Corpus count], [1,332], [754],
   ),
-  caption: [Performance comparison after 300 seconds of wall-clock time.],
+  caption: [Performance comparison after 30 minutes (0.5h) of wall-clock time.],
 ) <qemu-performance-table>
 
 #v(1em)
+
+#figure(
+  image(
+    "./img/qemu_edges.png",
+    width: 100%,
+  ), caption: [AFL++ QEMU mode edge coverage over time.]
+) <qemu-edges-plot>
+
+#v(1em)
+
+#figure(
+  image(
+    "./img/qemu_exec_speed.png",
+    width: 100%,
+  ), caption: [AFL++ QEMU mode execution speed over time.]
+) <qemu-exec-speed-plot>
