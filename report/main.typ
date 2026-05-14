@@ -289,10 +289,7 @@ The optional `TRUEVISION_PATCH=1` setting in our setup is not a patch to the tar
 // Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
 We selected a raw seed corpus of 10 small GIF files that cover a variety of features of the GIF format. The corpus includes both `GIF87a` and `GIF89a` files, 1x1 edge-case images, transparent GIFs, interlaced and non-interlaced variants of the same image, small 32x32 thumbnails, and larger 100x100 images. This gave AFL++ structurally valid starting points while keeping dry-run and mutation cost low.
 
-Two seeds were selected in particular because they are proof-of-concept inputs for the vulnerability classes we aimed to rediscover:
-
-- `poc_load_gif.gif`: a 32x32 two-frame animated GIF. This exercises the multi-frame GIF loading path and is relevant to the `load_gif()` use-after-free class of bugs.
-- `poc1_gif_oob.gif`: a minimal 1x1 GIF. This seed stresses boundary conditions in the image loader and conversion path, especially tiny dimensions and short image data.
+One seed was selected in particular because it is a proof-of-concept input for the vulnerability classes we aimed to rediscover (`poc1_gif_oob.gif`), more on this bug in Section 4. 
 
 Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header described earlier, yielding inputs of the form `control header || GIF payload`.
 
