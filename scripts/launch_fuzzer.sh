@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Usage: ./launch_fuzzer.sh <number_of_instances> <timeout_ms> <mode: native|qemu>
-# Example: ./launch_fuzzer.sh 4 500 qemu
+# Usage: ./scripts/launch_fuzzer.sh <number_of_instances> <timeout_ms> <mode: native|qemu>
+# Example: ./scripts/launch_fuzzer.sh 4 1000 native
+
 
 NUM_INSTANCES=${1:-1}
 TIMEOUT=${2:-3000}
