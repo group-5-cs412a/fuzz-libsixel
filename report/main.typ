@@ -338,10 +338,9 @@ However, because new paths were still being found near the end of the hour long 
 // If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
 
 
-Crash selected: AFL++ `crash id:000047 from outputs/20260514-142308/default/crashes`.
-#text(red)[fix path to put final path of the results]
+Crash selected: AFL++ 
 
-One of the two crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder. The input reaches
+One of the two distinct crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder. The input reaches
 `load_gif()`, which calls`gif_init_frame()`. AddressSanitizer reports an out-of-bounds
 write at fromgif.c:241:
 
@@ -380,9 +379,24 @@ We evaluated `libsixel` (v1.8.7) in a black-box scenario using AFL++ QEMU mode (
 Combined with `QASan`, we identified a heap-buffer underflow after disabling the `TRUEVISION` patch (which filters tiny inputs). `QASan` validates memory library calls against a shadow map, promoting "soft" corruptions to detectable crashes.
 
 = Instrumentation Depth and Performance
-#text(blue)[
-Report the number of instrumented edges reported by afl-fuzz at startup for (a) the library alone and (b) the final harness binary. Explain why these numbers differ. Then compare your campaign's map density to the total instrumented edges and explain why not all edges were reached. Additionally, measure exec speed under three configurations using the same harness: (1) no sanitizer + fork mode, (2) ASan + fork mode, (3) ASan + persistent mode. Report the three numbers and explain the source of each speedup or slowdown.
-]
+
+The total instrumented edge space reported by AFL++ at startup shows a target map size of 19,857 for this standalone target and *19,841 total edges for the final harness binary*.
+
+These numbers are very close because both binaries statically link the full
+`libsixel` archive using `-Wl,--whole-archive -lsixel -Wl,--no-whole-archive`.
+
+*The final campaign reached 2054 edges*, corresponding to *a bitmap
+coverage of 10.35*%. This means the fuzzer reached only a subset of the
+instrumented program. This is expected: the harness is GIF-focused and does not exercise unrelated paths such as PNG/JPEG loading, SIXEL decoding, terminal output behavior, and many rare error paths.
+
+We also measured execution speed using three builds of the same harness logic:
+no sanitizer with fork mode, ASan with fork mode, and ASan with persistent mode.
+The 30-second benchmark results are shown in @section8-speed-benchmark. ASan
+slows fork mode because every execution pays both the normal process startup
+cost and the sanitizer runtime/checking overhead. The persistent ASan build is
+much faster because `__AFL_LOOP` keeps the process alive and reuses the
+initialized library and sanitizer state across many test cases, avoiding the
+fork/exec and initialization cost for each input.
 
 #colbreak()
 
@@ -419,6 +433,21 @@ Report the number of instrumented edges reported by afl-fuzz at startup for (a) 
   ),
   caption: [Timeout A/B test using `SEED_PROFILE=fast BROAD_LOADER=0`.],
 )
+
+#v(1em)
+
+== Instrumentation Speed Benchmark
+
+#figure(
+  lab-table(
+    columns: (1.35fr, 0.9fr, 1fr),
+    [*Configuration*], [*Run time*], [*Speed*],
+    [No sanitizer + fork mode], [30s], [44.08 exec/s],
+    [ASan + fork mode], [30s], [26.33 exec/s],
+    [ASan + persistent mode], [30s], [*2848.27 exec/s*],
+  ),
+  caption: [Execution-speed benchmark for the same harness logic under three instrumentation/runtime configurations.],
+) <section8-speed-benchmark>
 
 #v(1em)
 
