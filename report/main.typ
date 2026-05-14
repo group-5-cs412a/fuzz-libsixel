@@ -136,7 +136,7 @@
 
 For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
-Even tough the guidelines mentioned the decoding path we judged that the encoder represented a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL. 
+Even tough the guidelines mentioned the decoding path, we deemed that the encoder represented a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL.
 
 Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
 This made the encoder a highly attractive target.
@@ -149,30 +149,23 @@ We also considered using a PNG corpus, but due to strict checks by the parsing l
 
 
 == Data Flow and Guards
-#text(blue)[
-*TODO: Then walk through your harness code and explain the data flow from the AFL++ input file to the library API call. For every guard in the code (error handling, dimension limits, etc.), explain why it is needed from a fuzzing perspective.*
-]
+Each AFL ++ test case is split into two parts: a 8-byte control header and the raw image payload.
 
-#text(blue)[data flow]
-Each test case is split into two parts : a 8-byte control header and the raw image data. 
-The first 8-bytes select encoder options such as color mode, quality, diffusion, resize/crop behavior, and animation-related flags. They are not passed to the library.
-The remaining bytes represents the image to and are written to a temporary file and passed to `sixel_encoder_encode` which expects a file path as input.
+The first 8-bytes are parsed by the harness and mapped to configuration options. They are passed to the library via `sixel_encoder_setopt` to configureencoder options such as color mode, quality, diffusion, resize/crop behavior, and animation-related flags.
 
-The harness receives each AFL++ test case through `stdin`, not through the usual `@@` filename argument, this avoid I/0 overhead.
+The remaining bytes represents the image and are written to a temporary file. The latter is passed to `sixel_encoder_encode`, which expects a file path as input. Note that the harness receives each AFL++ test case through `stdin`, rather than through the usual `@@` filename argument, avoiding I/0 overhead.
 
-The main data flow is therefore: \  `AFL++ testcase -> stdin -> 8-byte option header + GIF payload -> temporary GIF file -> sixel_encoder_encode`. \ 
-This lets AFL++ mutate both the image contents and the encoder configuration in a single input. The option bytes are mapped to fixed valid strings before being passed through `sixel_encoder_setopt`. This allows to explore many combinations of `libsixel` behavior.
+The main data flow is therefore: \  `AFL++ testcase -> stdin -> [8-byte option header] + [GIF payload] -> temporary GIF file -> sixel_encoder_encode`.\
+This lets AFL++ mutate both the image contents and the encoder configuration. The option bytes are mapped to fixed valid strings, to ensure the fuzzer explores many combinations of `libsixel` behavior.
 
 
-#text(blue)[guards]
 The harness contains several guards to allow the fuzzer to efficiently explore the library:  
-1. A guard ensures that the test case is at least 8 bytes long to contain the control header. This is needed because the harness expects the first 8 bytes to be valid options, and shorter inputs would be rejected before reaching the library code. 
-2. A guard ensure that the test case also contains a complete 6-byte GIF header after the control bytes. This is needed because the harness reconstructs an image file before calling the library API. Inputs shorter than this would only exercise trivial file rejection and would not reach the interesting decoder or encoder code. _Note that this guard can be removed to allow broader exploration of the file parsing logic with_ `make FUZZ BROAD_LOADER=1`
+1. A guard ensures that the test case is at least 8 bytes long to contain the control header. This is needed because the harness expects the first 8 bytes to be valid options, and shorter inputs would be rejected before reaching the library code.
+2. A guard ensures that the test case also contains a complete 6-byte GIF header after the control bytes. This is needed because the harness reconstructs an image file before calling the library API. Inputs shorter than this would only exercise trivial file rejection and would not reach the interesting decoder or encoder code. _Note that this guard can be removed to allow broader exploration of the file parsing logic with_ `make FUZZ BROAD_LOADER=1`.
+3. We then have various other guards to ensure the harness passes valid options / files to the library, such as `if (fd < 0) continue;` to ensure the file has been successfully written or  `if (status != SIXEL_OK) continue;` which ensures the option values are valid and accepted by the library.
 
-3. We then have various other guards to ensure the harness passes valid options / files to the library, such as `if (fd < 0) continue;` to ensure the file has been successfully written or  `if (status != SIXEL_OK) continue;` which ensures the option values are valid and accepted by the library.  
 
-
-We also guard all harness option selection by mapping arbitrary AFL++ bytes into finite option sets using masks or modulo operations. This keeps crashes attributable to the library code and not to the harness (e.g., by preventing invalid option values from being passed to the library).
+We also guard all harness option selection by mapping arbitrary AFL++ bytes into finite option sets using masks or modulo operations. This keeps crashes attributable to the library code and not to the harness (e.g. by preventing invalid option values from being passed to the library).
 
 Finally the resize and crop options are chosen from small fixed dictionaries. This bounds generated image dimensions and crop regions, preventing AFL++ from spending time on huge allocations, very slow transformations, or timeout-heavy inputs while still exercising scaling, cropping, and resampling code.
 
