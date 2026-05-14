@@ -321,6 +321,9 @@ AFL++ reported *99.96% stability*, which means that repeated executions of the s
 
 The bitmap density was 10.34% for the whole corpus, with 5.44 bits per tuple. This indicates that the campaign
 reached a meaningful part of the instrumented program, while still remaining far from bitmap saturation.
+The final execution speed was also lower than in the short benchmark runs,
+which is expected because the evolved queue contained slower inputs that reached
+deeper GIF decoding paths and included hang-producing test cases.
 
 The edge curve rises quickly at the beginning of the run and then continues as smaller step increases. This is the expected shape for a useful fuzzing campaign: AFL++ first discovers shallow parsing paths from the initial GIF
 seeds, then later reaches deeper behavior through mutation and queue cycling.
