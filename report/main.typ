@@ -223,9 +223,7 @@ Finally the resize and crop options are chosen from small fixed dictionaries. Th
 
 = Instrumentation and Sanitizers
 
-#text(blue)[
-List every compiler flag and patch you applied to the target library. For each one, explain what it does and what would happen if you omitted it. If you patched the library (e.g., removing checksums), explain the effect on path discovery.
-]
+// List every compiler flag and patch you applied to the target library. For each one, explain what it does and what would happen if you omitted it. If you patched the library (e.g., removing checksums), explain the effect on path discovery.
 == Target Version 
 We built *`libsixel v1.8.7`*, the latest stable release of the library At the time of writting two releases candidates were published (rc1, rc2), they address security vulnerabilities in the encoding path: These CVEs acts as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
 
@@ -288,9 +286,7 @@ The optional `TRUEVISION_PATCH=1` setting in our setup is not a patch to the tar
 
 
 = Seed Corpus and Dictionary
-#text(blue)[
-Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
-]
+// Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
 We selected a raw seed corpus of 10 small GIF files that cover a variety of features of the GIF format. The corpus includes both `GIF87a` and `GIF89a` files, 1x1 edge-case images, transparent GIFs, interlaced and non-interlaced variants of the same image, small 32x32 thumbnails, and larger 100x100 images. This gave AFL++ structurally valid starting points while keeping dry-run and mutation cost low.
 
 Two seeds were selected in particular because they are proof-of-concept inputs for the vulnerability classes we aimed to rediscover:
@@ -302,10 +298,10 @@ Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header d
 
 To keep the baseline campaign fast, we excluded expensive seeds from the default corpus, they can optionally be included by using the appropriate flag when running the campaign.
 
-#text(red)[Missing Dictionary Section / Analysis of AFL++ Status Screen]
 == Mutation Strategy Analysis
 The AFL++ strategy-yield table shows that dictionary-based mutations contributed 136 new paths. The dictionary row reports `136/458k, 0/459k, 0/0, 0/0`, meaning that the first dictionary mutation mode found 136 interesting inputs over about 458k executions. The havoc/splice row reports `973/1.88M, 0/0`, so havoc contributed 973 new paths over about 1.88M executions, while splicing did not contribute in this run, AFL++ did not spent executions in the splice stage.
-The numbers are reported in table #text(red)[link with table in the appendix]
+
+The numbers are reported in @strategy-yield-summary 
 
 
 = Campaign Analysis
@@ -315,11 +311,11 @@ Include your afl-plot edges graph and AFL++ status screen screenshot. Report sta
 ]
 = Crash Triage
 
-#text(blue)[
-If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
-]
-#text(red)[fix path to put final path of the results]
+// If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
+
+
 Crash selected: AFL++ `crash id:000047 from outputs/20260514-142308/default/crashes`.
+#text(red)[fix path to put final path of the results]
 
 One of the two crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder. The input reaches
 `load_gif()`, which calls`gif_init_frame()`. AddressSanitizer reports an out-of-bounds
@@ -338,8 +334,9 @@ bug may corrupt adjacent heap memory.
 
 This Bug does not have a assigned CVE but has been already reported and fixed in the release candidate: https://github.com/saitoha/libsixel/issues/220.
 
-The triage included reproducing the bug with our harness, then with `img2sixel` and finally with a minimized version, all commands necessary for the full triage
-are in the appendix as well as the stack trace. #text(red)[link to appendix result]
+The triage included reproducing the bug with our harness, then with `img2sixel` and finally with a minimized version.
+
+All commands necessary for the full triage, as well as the stacktrace are in the Appendix @appendix-triage 
 
 = Attack Surface Analysis
 
@@ -422,11 +419,11 @@ Report the number of instrumented edges reported by afl-fuzz at startup for (a) 
     [Trim/eff], [8.57%/481k, 98.83%], [Corpus cleanup],
   ),
   caption: [AFL++ strategy-yield summary. Havoc produced the most interesting inputs, while dictionary mutations also contributed meaningful new paths.],
-)
+) <strategy-yield-summary>
 
 #v(1em)
 
-== Crash triage
+== Crash triage <appendix-triage>
 
 #figure(
 simple-code[```
