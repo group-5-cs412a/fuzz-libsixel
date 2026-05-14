@@ -1,7 +1,7 @@
 IMAGE_NAME ?= libsixel-fuzzer
 INSTANCES ?= 4
 TIMEOUT ?= 5000
-OUTPUT_DIR ?= $(CURDIR)/outputs
+OUTPUT_DIR ?= outputs
 
 # Use the current user's UID and GID to avoid root-owned files in the output directory.
 USER_ID ?= $(shell id -u)
@@ -17,13 +17,13 @@ fuzz:
 	@run_dir="$(OUTPUT_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
+	docker run $(DOCKER_FLAGS) -v "$$(realpath "$$run_dir"):/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness
 
 fuzz-threaded:
 	@run_dir="$(OUTPUT_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) native
+	docker run $(DOCKER_FLAGS) -v "$$(realpath "$$run_dir"):/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) native
 
 fuzz-qemu-threaded: TIMEOUT = 10000
 fuzz-qemu-threaded:
@@ -31,7 +31,7 @@ fuzz-qemu-threaded:
 	@run_dir="$(OUTPUT_DIR)/qemu-threaded-$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$$run_dir"; \
 	printf 'Saving AFL++ QEMU outputs to %s\n' "$$run_dir"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) qemu
+	docker run $(DOCKER_FLAGS) -v "$$(realpath "$$run_dir"):/fuzzing/outputs" $(IMAGE_NAME) /fuzzing/launch_fuzzer.sh $(INSTANCES) $(TIMEOUT) qemu
 
 fuzz-qemu: TIMEOUT = 10000
 fuzz-qemu:
@@ -46,32 +46,37 @@ fuzz-qemu:
 	else \
 		QASAN_FLAG="-e AFL_USE_QASAN=1"; \
 	fi; \
-	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
+	docker run $(DOCKER_FLAGS) $$QASAN_FLAG -v "$$(realpath "$$run_dir"):/fuzzing/outputs" $(IMAGE_NAME) afl-fuzz -Q -t $(TIMEOUT) -m none -i /fuzzing/seeds -o /fuzzing/outputs -- /usr/local/bin/sixel-harness-qemu
 
 plot:
-	@if [ -z "$(RUN_DIR)" ]; then \
+	@if [ -n "$(RUN_DIR)" ]; then \
+		run_dir="$(RUN_DIR)"; \
+	elif [ -d "$(OUTPUT_DIR)/main" ] || [ -d "$(OUTPUT_DIR)/default" ]; then \
+		run_dir="$(OUTPUT_DIR)"; \
+	else \
 		run_dir=$$(ls -td $(OUTPUT_DIR)/*/ 2>/dev/null | head -1); \
 		if [ -z "$$run_dir" ]; then echo "No runs found in $(OUTPUT_DIR)"; exit 1; fi; \
-	else \
-		run_dir="$(RUN_DIR)"; \
 	fi; \
-	run_dir=$$(realpath "$$run_dir"); \
-	rm -rf "$$run_dir/plot"; \
-	echo "Generating plots for $$run_dir to $$run_dir/plot"; \
-	docker run $(DOCKER_FLAGS) -v "$$run_dir:/fuzzing/outputs" $(IMAGE_NAME) /bin/bash -c " \
-		if [ -d /fuzzing/outputs/main ]; then \
-			instance=main; \
+	abs_run_dir=$$(realpath "$$run_dir"); \
+	rm -rf "$$abs_run_dir/plot"; \
+	echo "Generating plots for $$abs_run_dir to $$abs_run_dir/plot"; \
+	docker run $(DOCKER_FLAGS) -v "$$abs_run_dir:/fuzzing/outputs" $(IMAGE_NAME) /bin/bash -c " \
+		if [ -f /fuzzing/outputs/fuzzer_stats ]; then \
+			instance_path=/fuzzing/outputs; \
+		elif [ -d /fuzzing/outputs/main ]; then \
+			instance_path=/fuzzing/outputs/main; \
 		elif [ -d /fuzzing/outputs/default ]; then \
-			instance=default; \
+			instance_path=/fuzzing/outputs/default; \
 		else \
-			instance=\$$(find /fuzzing/outputs -maxdepth 2 -name fuzzer_stats -exec dirname {} \; | head -n 1 | xargs basename); \
+			instance_path=\$$(find /fuzzing/outputs -maxdepth 2 -name fuzzer_stats -exec dirname {} \; | head -n 1); \
 		fi; \
-		if [ -z \"\$$instance\" ]; then \
+		if [ -z \"\$$instance_path\" ]; then \
 			echo \"Could not find an AFL instance directory in /fuzzing/outputs\"; \
 			exit 1; \
 		fi; \
-		echo \"Plotting instance: \$$instance\"; \
-		afl-plot \"/fuzzing/outputs/\$$instance\" /fuzzing/outputs/plot"
+		echo \"Plotting from: \$$instance_path\"; \
+		afl-plot \"\$$instance_path\" /fuzzing/outputs/plot"
+
 
 clean:
 	rm -rf "$(OUTPUT_DIR)"
