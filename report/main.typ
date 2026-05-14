@@ -178,9 +178,58 @@ Finally the resize and crop options are chosen from small fixed dictionaries. Th
 
 
 = Instrumentation and Sanitizers
+
 #text(blue)[
 List every compiler flag and patch you applied to the target library. For each one, explain what it does and what would happen if you omitted it. If you patched the library (e.g., removing checksums), explain the effect on path discovery.
 ]
+== Target Version 
+We built *`libsixel v1.8.7`*, the latest stable release of the library At the time of writting two releases candidates were published (rc1, rc2), they address security vulnerabilities in the encoding path: These CVEs acts as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
+
+== Coverage Instrumentation
+
+We instrumented the library with AFL++'s `afl-clang-lto` / `afl-clang-lto++`, which inserts compile-time edge coverage. This gives AFL++ precise feedback for input selection. 
+`CC=afl-clang-lto CXX=afl-clang-lto++` 
+
+== *AddressSanitizer*
+
+We also built the library with AddressSanitizer (ASan) to detect memory safety bugs. This allows us to catch memory corruption issues that might not immediately cause a crash, improving our chances of finding security vulnerabilities.
+If omitted, AFL++ would still find hard crashes, but many invalid reads/writes would remain silent or become harder-to-reproduce later crashes.
+`ENV AFL_USE_ASAN=1`
+
+Because ASan reserves a large virtual address space, we run AFL++ with `-m none`; otherwise AFL++'s default memory limit can kill valid ASan-instrumented executions.
+
+At runtime, we used \
+```
+ASAN_OPTIONS=detect_leaks=0
+abort_on_error=1
+symbolize=0
+```
+Leak detection was disabled because the persistent harness intentionally runs many iterations in one process, and leak reports at process exit are less useful for this campaign than immediate memory-safety crashes. `abort_on_error=1` ensures sanitizer findings terminate the process in a way AFL++ records as a crash. `symbolize=0` avoids the overhead of online symbolization during fuzzing; symbolization can be done later during triage.
+
+
+== Build Configuration
+
+The flags `-g -O2` were used to include debug symbols for better crash triage and to optimize the code for more realistic performance.
+
+`--prefix=/usr/local` ensures the harness links against the freshly built instrumented library. `--with-gd`, `--with-jpeg`, and `--with-png` enable the image backends relevant to realistic encoder inputs; `--with-gd` is especially important for GIF handling. `--with-libcurl=no`, `--with-gdk-pixbuf2=no`, and `--disable-python` remove network, GUI, and language-binding components that our harness does not exercise.
+
+== Linking
+
+When linking the final harness, we used `-Wl,--whole-archive -lsixel -Wl,--no-whole-archive`. This forces the linker to include the full static `libsixel` archive in the final binary instead of only the object files directly referenced by the harness. This is useful for instrumentation accounting and comparison because the final binary contains the library code rather than only a minimal linker-selected subset. Without `--whole-archive`, the binary would be smaller, but some instrumented library edges would be absent from the final executable.
+
+== Patching
+The library was configured with `--disable-shared --enable-static`. This makes the harness link against a static `libsixel` archive instead of a shared library. Static linking makes the fuzzing binary self-contained and ensures that the instrumented library code is the code executed by AFL++. If we used an uninstrumented shared system library by mistake, AFL++ would mainly see coverage from the harness rather than from the target library.
+
+
+
+
+
+We did not apply a source patch to `libsixel`. In particular, there was no checksum-removal patch comparable to the `libpng` CRC patch discussed in the handout. Our main format was GIF, whose magic-byte check is handled at the harness level by preserving or filtering for `GIF87a`/`GIF89a`.
+
+The optional `TRUEVISION_PATCH=1` setting in our setup is not a patch to the target library; it is a harness-side filter that skips very small image payloads to avoid shallow file-detection behavior and focus executions on deeper parsing paths.
+
+
+
 = Seed Corpus and Dictionary <sec:figs>
 #text(blue)[
 Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
