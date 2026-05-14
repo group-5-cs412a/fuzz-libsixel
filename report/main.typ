@@ -364,9 +364,13 @@ All commands necessary for the full triage, as well as the stacktrace are in the
 
 = Attack Surface Analysis
 
-#text(blue)[
-Name two real-world applications that use your target library and describe a concrete attack scenario. Then identify at least two code paths in those applications that your harness does not exercise, and explain why these gaps matter for security.
-]
+
+// Name two real-world applications that use your target library and describe a concrete attack scenario. Then identify at least two code paths in those applications that your harness does not exercise, and explain why these gaps matter for security.
+
+The `libsixel` GitHub repository lists several applications that use the library such as `w3m`(text based web browser and pager) and RetroArch (frontend for video game system emulators).
+
+A concrete attack scenario for `w3m` could be a malicious web page containing a specially crafted GIF image that exploits the heap-based buffer overflow in `libsixel`'s GIF decoder (as described in the previous section). When a user visits the page with `w3m`, the vulnerable code path is triggered, potentially allowing an attacker to execute arbitrary code.
+
 = Binary-Only Fuzzing with QEMU Mode
 
 To evaluate the library in a black-box scenario, we ran a campaign against an uninstrumented binary using AFL++ QEMU mode (`-Q`). We built vanilla versions of the harness and `libsixel` (v1.8.7) using standard `gcc` / `g++`, confirming via `nm` and through the library build configurations that no sanitizer symbols or instrumentation points were present.
