@@ -1,3 +1,4 @@
+repository : https://github.com/group-5-cs412a/fuzz-libsixel/settings
 
 ## 1. Build and Run with Makefile (Recommended)
 The recommended entrypoint is the project `Makefile`, which keeps AFL++ outputs on
