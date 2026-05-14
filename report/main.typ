@@ -86,7 +86,6 @@
   columns(2, gutter: 0.33in)[
     #if abstract != none {
       block(width: 100%)[
-        #set par(first-line-indent: 0pt)
         #align(center, text(size: 12pt, weight: "bold")[Abstract])
         #v(0.35em)
         #abstract
@@ -135,14 +134,17 @@
 
 == Selected Entrypoint
 
-For this campaign, we selected the encoding path of the library, specifically targetting the `sixel_encoder_encode` function rather than the decoding path suggested by the lab guidelines. Indeed, we judged that the encoder represents a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL. This makes the encoder a highly attractiv target. Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
+For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
+Even tough the guidelines mentioned the decoding path we judged that the encoder represented a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL. 
+
+Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
+This made the encoder a highly attractive target.
 == Considered Alternatives
 
-#text(blue)[
 We initially considered fuzzing the high-level `img2sixel` function. However, we rejected this approach because high-level wrappers introduce unnecessary overhead (e.g. command-line argument parsing, I/O operations, ...). By writing a custom harness directly around `sixel_encoder_encode`, we skip all non-encoding related functionality.
-]
-*TODO: WHY WOULD IT BE (NOT) WORTH FUZZING THE DECODE PATH*
+
+We also considered using a PNG corpus, but due to strict checks by the parsing library (`libpng`), our fuzzer was not able to reach the encoding logic. Inspired by the recent CVE, we switched to a corpus of GIF files, which are not subject to such strict checks and are still able to trigger the encoding logic.
 
 == Data Flow and Guards
 #text(blue)[
