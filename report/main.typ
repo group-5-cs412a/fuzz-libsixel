@@ -165,6 +165,7 @@
 
 For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
+#text(red)[Turns out this is wrong]
 Even tough the guidelines mentioned the decoding path, we deemed that the encoder represented a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL.
 
 Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
@@ -285,20 +286,45 @@ Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header d
 
 To keep the baseline campaign fast, we excluded expensive seeds from the default corpus, they can optionally be included by using the appropriate flag when running the campaign.
 
-#text(red)[Missing Dictionnary Section / Analysis of AFL++ Status Screen]
+#text(red)[Missing Dictionary Section / Analysis of AFL++ Status Screen]
+== Mutation Strategy Analysis
+The AFL++ strategy-yield table shows that dictionary-based mutations contributed 136 new paths. The dictionary row reports `136/458k, 0/459k, 0/0, 0/0`, meaning that the first dictionary mutation mode found 136 interesting inputs over about 458k executions. The havoc/splice row reports `973/1.88M, 0/0`, so havoc contributed 973 new paths over about 1.88M executions, while splicing did not contribute in this run, AFL++ did not spent executions in the splice stage.
+The numbers are reported in table #text(red)[link with table in the appendix]
+
 
 = Campaign Analysis
 
 #text(blue)[
 Include your afl-plot edges graph and AFL++ status screen screenshot. Report stability, corpus count, map density, and cycles done. Describe the shape of the edges curve and argue whether the campaign reached saturation.
-
 ]
 = Crash Triage
 
 #text(blue)[
 If crashes were found: Pick one crash and show the full triage -- reproduce it, minimize it with afl-tmin, obtain an ASan stack trace. Identify the bug type and, if applicable, the corresponding CVE. If no crashes were found: Prove your setup works by injecting a synthetic bug (e.g., an off-by-one write), re-fuzzing for 60 seconds, and showing AFL++ catches it. Then argue why no real bugs were found.
-
 ]
+#text(red)[fix path to put final path of the results]
+Crash selected: AFL++ `crash id:000047 from outputs/20260514-142308/default/crashes`.
+
+One of the two crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder. The input reaches
+`load_gif()`, which calls`gif_init_frame()`. AddressSanitizer reports an out-of-bounds
+write at fromgif.c:241:
+
+    `frame->palette[pg->transparent * 3 + 0] = bgcolor[0];`
+
+The root cause is that the GIF transparency index from the Graphic Control Extension is
+used as an index into frame->palette without checking that it is smaller than the number
+of palette entries. In the crashing input, the transparent index is 0xdf, while the GIF is
+a tiny 1x1 image with a much smaller palette. This causes writes past the heap allocation
+for frame->palette.
+
+Under ASan the program aborts with SIGABRT, without ASan the
+bug may corrupt adjacent heap memory.
+
+This Bug does not have a assigned CVE but has been already reported and fixed in the release candidate: https://github.com/saitoha/libsixel/issues/220.
+
+The triage included reproducing the bug with our harness, then with `img2sixel` and finally with a minimized version, all commands necessary for the full triage
+are in the appendix as well as the stack trace. #text(red)[link to appendix result]
+
 = Attack Surface Analysis
 
 #text(blue)[
@@ -335,3 +361,8 @@ Despite the performance penalty, the QEMU campaignl, when combined with `QASan` 
 #text(blue)[
 Report the number of instrumented edges reported by afl-fuzz at startup for (a) the library alone and (b) the final harness binary. Explain why these numbers differ. Then compare your campaign's map density to the total instrumented edges and explain why not all edges were reached. Additionally, measure exec speed under three configurations using the same harness: (1) no sanitizer + fork mode, (2) ASan + fork mode, (3) ASan + persistent mode. Report the three numbers and explain the source of each speedup or slowdown.
 ]
+
+
+= Appendix 
+
+
