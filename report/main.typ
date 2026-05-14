@@ -115,7 +115,7 @@
   columns(2, gutter: 0.33in)[
     #if abstract != none {
       block(width: 100%)[
-        #align(center, text(size: 12pt, weight: "bold")[Abstract])
+        #align(center, text(size: 12pt, weight: "bold")[Introduction])
         #v(0.35em)
         #abstract
       ]
@@ -136,7 +136,7 @@
   title: [Fuzzing Libsixel \
     A report for CS-412],
   abstract: [
-    This report details the design, executions and analysis of a coverage guided fuzzing campaign on the open-source library `libsixel` using the AFL++ fuzzer.
+    This report details the design, executions and analysis of a coverage guided fuzzing campaign on the open-source library `libsixel` using the AFL++ fuzzer. The target repository was pinned to version 1.8.7, to ensure reproducibility.
 
     `libsixel` is an encoder/decoder library for SIXEL, an image format for printer and terminal imaging.
 
@@ -161,22 +161,16 @@
 
 = Harness Design
 
-== Selected Entrypoint
+== Selected Entrypoint And Considered Alternatives
 
 For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
-#text(red)[Turns out this is wrong]
-Even tough the guidelines mentioned the decoding path, we deemed that the encoder represented a larger and more critical attack surface, as applications usually rely on libsixel to process binary image formats (e.g PNG, JPEG, GIF) to output SIXEL.
-
-Additionally, recently identified vulnerabilities were due to bugs in the encoding path.
+Even tough the guidelines suggested fuzzing the decoding path, recently identified vulnerabilities were due to bugs in the encoding path.
 This made the encoder a highly attractive target.
-== Considered Alternatives
 
 We initially considered fuzzing the high-level `img2sixel` function. However, we rejected this approach because high-level wrappers introduce unnecessary overhead (e.g. command-line argument parsing, I/O operations, ...). By writing a custom harness directly around `sixel_encoder_encode`, we skip all non-encoding related functionality.
 
 We also considered using a PNG corpus, but due to strict checks by the parsing library (`libpng`), our fuzzer was not able to reach the encoding logic. Inspired by the recent CVE, we switched to a corpus of GIF files, which are not subject to such strict checks and are still able to trigger the encoding logic.
-
-
 
 == Data Flow and Guards
 Each AFL ++ test case is split into two parts: a 8-byte control header and the raw image payload.
