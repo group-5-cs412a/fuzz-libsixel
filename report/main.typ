@@ -158,7 +158,7 @@
   title: [Fuzzing Libsixel \
     A report for CS-412],
   abstract: [
-    This report details the design, executions and analysis of a coverage guided fuzzing campaign on version 1.8.7 of the open-source library `libsixel` using the AFL++ fuzzer.
+    This report details the design, execution, and analysis of a coverage-guided fuzzing campaign on version 1.8.7 of the open-source library `libsixel` using the AFL++ fuzzer.
 
     `libsixel` is an encoder/decoder library for SIXEL, an image format for printer and terminal imaging.
 
@@ -183,21 +183,21 @@
 
 = Harness Design
 
-== Selected Entrypoint And Considered Alternatives
+== Selected Entrypoint and Considered Alternatives
 
 For this campaign, we selected the *encoding path* of the library, specifically targeting the `sixel_encoder_encode` function. 
 
-Even tough the guidelines suggested fuzzing the decoding path, recently identified vulnerabilities were due to bugs in the encoding path (see #link("https://nvd.nist.gov/vuln/detail/CVE-2026-33018")[CVE-2026-33018]).
+Even though the guidelines suggested fuzzing the decoding path, recently identified vulnerabilities were due to bugs in the encoding path (see #link("https://nvd.nist.gov/vuln/detail/CVE-2026-33018")[CVE-2026-33018]).
 This made the encoder a highly attractive target.
 
 We initially considered fuzzing the high-level `img2sixel` function. However, we rejected this approach because high-level wrappers introduce unnecessary overhead (e.g. command-line argument parsing, I/O operations, ...). By writing a custom harness directly around `sixel_encoder_encode`, we skip all non-encoding related functionality.
 
 == Data Flow and Guards
-Each AFL ++ test case is split into two parts: a 8-byte control header and the raw image payload.
+Each AFL++ test case is split into two parts: an 8-byte control header and the raw image payload.
 
-The first 8-bytes are parsed by the harness and mapped to configuration options. They are passed to the library via `sixel_encoder_setopt` to configureencoder options such as color mode, quality, diffusion, resize/crop behavior, and animation-related flags.
+The first 8 bytes are parsed by the harness and mapped to configuration options. They are passed to the library via `sixel_encoder_setopt` to configure encoder options such as color mode, quality, diffusion, resize/crop behavior, and animation-related flags.
 
-The remaining bytes represents the image and are written to a temporary file. The latter is passed to `sixel_encoder_encode`, which expects a file path as input. Note that the harness receives each AFL++ test case through `stdin`, rather than through the usual `@@` filename argument, avoiding I/0 overhead.
+The remaining bytes represent the image and are written to a temporary file. The latter is passed to `sixel_encoder_encode`, which expects a file path as input. Note that the harness receives each AFL++ test case through `stdin`, rather than through the usual `@@` filename argument, avoiding I/O overhead.
 
 The main data flow is therefore: 
 
@@ -223,7 +223,7 @@ Finally the resize and crop options are chosen from small fixed dictionaries. Th
 
 // List every compiler flag and patch you applied to the target library. For each one, explain what it does and what would happen if you omitted it. If you patched the library (e.g., removing checksums), explain the effect on path discovery.
 == Target Version 
-We built *`libsixel v1.8.7`*, the latest stable release of the library. At the time of writting, two releases candidates were published (r1, r2), they address security vulnerabilities in the encoding path: These CVEs acts as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
+We built *`libsixel v1.8.7`*, the latest stable release of the library. At the time of writing, two release candidates were published (r1, r2), and they address security vulnerabilities in the encoding path: these CVEs act as a benchmark for our campaign as we should be able to find them with our setup, and they provide a good case study, as well as motivate our choice of fuzzing the encoder instead of the decoder.
 
 == Coverage Instrumentation
 
@@ -291,15 +291,15 @@ One seed was selected in particular (`poc1_gif_oob.gif`) because it is a proof-o
 
 Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header described earlier, yielding inputs of the form `control header || GIF payload`.
 
-To keep the baseline campaign fast, we excluded expensive seeds from the default corpus, they can optionally be included by using the appropriate flag when running the campaign.
+To keep the baseline campaign fast, we excluded expensive seeds from the default corpus. They can optionally be included by using the appropriate flag when running the campaign.
 
 == Mutation Strategy Analysis
-The AFL++ strategy-yield table shows that dictionary-based mutations contributed 136 new paths. The dictionary row reports `136/458k, 0/459k, 0/0, 0/0`, meaning that the first dictionary mutation mode found 136 interesting inputs over about 458k executions. The havoc/splice row reports `973/1.88M, 0/0`, so havoc contributed 973 new paths over about 1.88M executions, while splicing did not contribute in this run, AFL++ did not spent executions in the splice stage.
+The AFL++ strategy-yield table shows that dictionary-based mutations contributed 136 new paths. The dictionary row reports `136/458k, 0/459k, 0/0, 0/0`, meaning that the first dictionary mutation mode found 136 interesting inputs over about 458k executions. The havoc/splice row reports `973/1.88M, 0/0`, so havoc contributed 973 new paths over about 1.88M executions, while splicing did not contribute in this run; AFL++ did not spend executions in the splice stage.
 
 The numbers are reported in @strategy-yield-summary 
 
 == Dictionary
-To optimize the mutation process, we provided AFL++ with a GIF Dictionnary (which can be found #link("https://gitedu.hesge.ch/stefan.antun/aflplusplus/-/blob/ea265a1c547ab32451092af27d3b686190fdeaba/dictionaries/gif.dict")[at this link]). The fuzzer can therefore directly inject these known tokens (headers, section markers, etc.) instead of having to discover them through random mutations.
+To optimize the mutation process, we provided AFL++ with a GIF dictionary (which can be found #link("https://gitedu.hesge.ch/stefan.antun/aflplusplus/-/blob/ea265a1c547ab32451092af27d3b686190fdeaba/dictionaries/gif.dict")[at this link]). The fuzzer can therefore directly inject these known tokens (headers, section markers, etc.) instead of having to discover them through random mutations.
 
 
 = Campaign Analysis
@@ -329,7 +329,7 @@ seeds, then later reaches deeper behavior through mutation and queue cycling.
 The status screen reports that a new path had been found 58 seconds before the screenshot, so the campaign was still productive when it was stopped.
 For this reason, *we do not consider the campaign saturated*. The run is long enough to validate the harness and demonstrate that AFL++ reaches meaningful
 decoder behavior, especially since it found 51 unique crashes. 
-However, because new paths were still being found near the end of the hour long run, a longer campaign, would likely discover additional coverage and possibly more crashes.
+However, because new paths were still being found near the end of the hour-long run, a longer campaign would likely discover additional coverage and possibly more crashes.
 
 = Crash Triage
 
@@ -337,8 +337,8 @@ However, because new paths were still being found near the end of the hour long 
 
 
 One of the two distinct crashes we found was a *heap-based buffer overflow*, specifically it is an *out-of-bounds write* in libsixel's GIF decoder.
-The rest of this section analyze `crash id:000047 from findings/default/crashes`, which is one of the many inputs that triggers this bug.  
-The input `load_gif()`, which calls `gif_init_frame()`. AddressSanitizer reports an out-of-bounds
+The rest of this section analyzes `crash id:000047 from findings/default/crashes`, which is one of the many inputs that triggers this bug.  
+The input reaches `load_gif()`, which calls `gif_init_frame()`. AddressSanitizer reports an out-of-bounds
 write at fromgif.c:241:
 
     #block(text(size: 9.5pt)[
@@ -351,27 +351,27 @@ for frame->palette.
 Under ASan the program aborts with SIGABRT, without ASan the
 bug may corrupt adjacent heap memory.
 
-This Bug does not have a assigned CVE but has been already reported and fixed in the release candidate: https://github.com/saitoha/libsixel/issues/220.
+This bug does not have an assigned CVE but has already been reported and fixed in the release candidate: https://github.com/saitoha/libsixel/issues/220.
 
 The triage included reproducing the bug with our harness, then with `img2sixel` and finally with a minimized version.
 
-All commands necessary for the full triage, as well as the stacktrace are in the Appendix @appendix-triage 
+All commands necessary for the full triage, as well as the stack trace, are in the Appendix @appendix-triage 
 
 = Attack Surface Analysis
 
 // Name two real-world applications that use your target library and describe a concrete attack scenario. Then identify at least two code paths in those applications that your harness does not exercise, and explain why these gaps matter for security.
 
-The `libsixel` GitHub repository lists several applications that use the library such as `w3m`(text based web browser and pager) and RetroArch (frontend for video game system emulators).
+The `libsixel` GitHub repository lists several applications that use the library such as `w3m` (text-based web browser and pager) and RetroArch (frontend for video game system emulators).
 
 A concrete attack scenario for `w3m` could be a malicious web page containing a specially crafted GIF image that exploits the heap-based buffer overflow in `libsixel`'s GIF decoder (as described in the previous section). When a user visits the page with `w3m`, the vulnerable code path is triggered, potentially allowing an attacker to execute arbitrary code.
 
-Our harness focused on GIF encoding leaves two critical security gaps. It ignores non-GIF formats (JPEG, PNG, etc.) handled by `sixel_helper_load_image_file` in `loader.c`. These formats involve complex parsing logic and dependencies that remain unexercised. It also misses the Sixel-to-Pixel decoding path, such as `sixel_decode` in `fromsixel.c`. This is a critical area for terminal security, as this code parses untrusted characters sent by remote servers, a bug here could lead to shell access.
+Our harness focused on GIF encoding leaves two critical security gaps. It ignores non-GIF formats (JPEG, PNG, etc.) handled by `sixel_helper_load_image_file` in `loader.c`. These formats involve complex parsing logic and dependencies that remain unexercised. It also misses the Sixel-to-Pixel decoding path, such as `sixel_decode` in `fromsixel.c`. This is a critical area for terminal security, as this code parses untrusted characters sent by remote servers; a bug here could lead to shell access.
 
 = Binary-Only Fuzzing with QEMU Mode
 We evaluated `libsixel` (v1.8.7) in a black-box scenario using AFL++ QEMU mode (`-Q`). Vanilla versions of the harness and library were built using standard `gcc`/`g++`, with `nm` and build configs confirming the absence of instrumentation or sanitizer symbols. Performance after 300s is summarized in @qemu-performance-table:
 1. *Execution Speed*: Instrumented mode is $tilde$30x faster due to *persistent mode* (`__AFL_LOOP`) vs. QEMU's JIT overhead and the cost of forking for each execution.
 2. *Edges Discovered*: QEMU mode found $tilde$35% more edges by instrumenting the entire address space, capturing paths in shared libraries (e.g., `libc`) that are black-boxes to source instrumentation.
-3. *Corpus Count*: Higher throughput leads to a higher exploration rate and corpus.
+3. *Corpus Count*: Higher throughput leads to a higher exploration rate and a larger corpus.
 Combined with `QASan`, we identified a heap-buffer underflow after disabling the `TRUEVISION` patch (which filters tiny inputs). `QASan` validates memory library calls against a shadow map, promoting "soft" corruptions to detectable crashes.
 
 = Instrumentation Depth and Performance
@@ -456,7 +456,7 @@ fork/exec and initialization cost for each input.
     [*Strategy*], [*Yield*], [*Impact*],
     [Bit flips], [29/40.3k, 20/40.3k, 16/40.2k], [Small],
     [Byte flips], [2/5035, 2/5025, 4/5005], [Small],
-    [Arithmetics], [86/351k, 31/696k, 27/693k], [Moderate],
+    [Arithmetic], [86/351k, 31/696k, 27/693k], [Moderate],
     [Known ints], [3/45.1k, 5/189k, 16/279k], [Small],
     [*Dictionary*], [*136/458k*, 0/459k, 0/0, 0/0], [*Useful*],
     [*Havoc/splice*], [*973/1.88M*, 0/0], [*Dominant*],
@@ -468,7 +468,7 @@ fork/exec and initialization cost for each input.
 
 #v(1em)
 
-== Campaign analysis
+== Campaign Analysis
 
 #figure(
   image(
@@ -514,7 +514,7 @@ fork/exec and initialization cost for each input.
 ) <low-freq-plot>
 
 
-== Crash triage <appendix-triage>
+== Crash Triage <appendix-triage>
 
 #figure(
 simple-code[```
@@ -531,7 +531,7 @@ SUMMARY: AddressSanitizer: heap-buffer-overflow /src/libsixel/src/fromgif.c:241:
 ```], caption: "Backtrace of crash 47.")
 
  #v(1em)
-=== afl-tmin
+=== AFL-tmin
 
 #figure(
   simple-code[
@@ -546,7 +546,7 @@ docker run --rm \
   -o /host/triage/id000047.min \
   -- /usr/local/bin/sixel-harness
   ```
-  ], caption:"Command to minimise the seed."
+  ], caption:"Command to minimize the seed."
 )
 
 #v(1.0em)
@@ -560,7 +560,7 @@ Characters simplified: 69.23%
 Number of execs done: 249
 Output written to: triage/id000047.min`
   ],
-  caption: "Afl-tmin result."
+  caption: "AFL-tmin result."
 )
 
 #v(1.0em)
@@ -574,7 +574,7 @@ Output written to: triage/id000047.min`
   libsixel-fuzzer \
   /bin/bash -lc '/usr/local/bin/sixel-harness < /host/triage/id000047.min'
   ```
-  ], caption:"Reproducing the crash with minimised seed."
+  ], caption:"Reproducing the crash with minimized seed."
 )
 
 #v(1.0em)
@@ -587,7 +587,7 @@ docker run --rm \
   -e ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1 \
   libsixel-fuzzer \
   /bin/bash -lc 'img2sixel -o /dev/null -g -p 256 -q auto -d auto -t rgb -f auto -s auto -E auto -B "#FF0000" -l auto /host/triage/id000047.min.gif'
-  ```], caption : "Running img2sixel with minimised input"
+  ```], caption : "Running img2sixel with minimized input"
   )
 
 == QEMU Performance Comparison
