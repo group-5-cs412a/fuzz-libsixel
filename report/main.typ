@@ -327,12 +327,14 @@ Name two real-world applications that use your target library and describe a con
 = Binary-Only Fuzzing with QEMU Mode
 
 To evaluate the library in a black-box scenario, we ran a campaign against an uninstrumented binary using AFL++ QEMU mode (`-Q`). We built vanilla versions of the harness and `libsixel` (v1.8.7) using standard `gcc` / `g++`, confirming via `nm` and through the library build configurations that no sanitizer symbols or instrumentation points were present.
-#text(red)[Move Table to Appendix to stay within 4 pages?]
+#text(red)[TODO: Move Table to Appendix to stay within 4 pages? Or is it smol enough]
 #figure(
   table(
-    columns: (1fr, 1fr, 1fr),
-    inset: 10pt,
-    align: horizon,
+    columns: (auto, 1fr, 1fr),
+    inset: (x: 5pt, y: 3pt),
+    stroke: 0.5pt,
+    align: (x, y) => (left, center, center).at(x) + horizon,
+    fill: (x, y) => if y == 0 { gray.lighten(80%) },
     [*Axis*], [*Instrumented*], [*QEMU Mode*],
     [Exec Speed], [2,670.5 execs/s], [90.1 execs/s],
     [Edges Discovered], [2,001], [2,696],
