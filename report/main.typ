@@ -270,10 +270,23 @@ The optional `TRUEVISION_PATCH=1` setting in our setup is not a patch to the tar
 
 
 
-= Seed Corpus and Dictionary <sec:figs>
+= Seed Corpus and Dictionary
 #text(blue)[
 Describe your seeds and dictionary. Using the dictionary and havoc/splice rows from your AFL++ status screen, quantify how many new paths each strategy contributed. Explain what the dictionary entries represent in formal terms (hint: think grammar/language theory).
 ]
+We selected a raw seed corpus of 10 small GIF files that cover a variety of features of the GIF format. The corpus includes both `GIF87a` and `GIF89a` files, 1x1 edge-case images, transparent GIFs, interlaced and non-interlaced variants of the same image, small 32x32 thumbnails, and larger 100x100 images. This gave AFL++ structurally valid starting points while keeping dry-run and mutation cost low.
+
+Two seeds were selected in particular because they are proof-of-concept inputs for the vulnerability classes we aimed to rediscover:
+
+- `poc_load_gif.gif`: a 32x32 two-frame animated GIF. This exercises the multi-frame GIF loading path and is relevant to the `load_gif()` use-after-free class of bugs.
+- `poc1_gif_oob.gif`: a minimal 1x1 GIF. This seed stresses boundary conditions in the image loader and conversion path, especially tiny dimensions and short image data.
+
+Before fuzzing, each raw GIF is wrapped with the 8-byte harness control header described earlier, yielding inputs of the form `control header || GIF payload`.
+
+To keep the baseline campaign fast, we excluded expensive seeds from the default corpus, they can optionally be included by using the appropriate flag when running the campaign.
+
+#text(red)[Missing Dictionnary Section / Analysis of AFL++ Status Screen]
+
 = Campaign Analysis
 
 #text(blue)[
@@ -294,7 +307,7 @@ Name two real-world applications that use your target library and describe a con
 = Binary-Only Fuzzing with QEMU Mode
 
 To evaluate the library in a black-box scenario, we ran a campaign against an uninstrumented binary using AFL++ QEMU mode (`-Q`). We built vanilla versions of the harness and `libsixel` (v1.8.7) using standard `gcc` / `g++`, confirming via `nm` and through the library build configurations that no sanitizer symbols or instrumentation points were present.
-
+#text(red)[Move Table to Appendix to stay within 4 pages?]
 #figure(
   table(
     columns: (1fr, 1fr, 1fr),
